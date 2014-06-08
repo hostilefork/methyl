@@ -391,6 +391,99 @@ public:
             getNode().getContext()
         );
     }
+
+    ///
+    /// Structural checked casting assistance
+    ///
+    /// The only way we can call the most derived function is by
+    /// creating an instance of the target accessor class and running
+    /// the test on that.  For chaining we make it easy to take optionals
+    /// It will not cast across branches in the Node class tree; just
+    /// straight up and down cast.
+    ///
+    /// https://github.com/hostilefork/methyl/issues/24
+    ///
+
+public:
+    template<class SourceT>
+    static optional<NodeRef<T const>> checked(
+        NodeRef<SourceT const> const & source,
+        typename std::enable_if<
+            std::is_base_of<T, SourceT>::value
+            or std::is_base_of<SourceT, T>::value
+            or std::is_same<T, SourceT>::value,
+            void *
+        >::type = nullptr
+    ) {
+        NodeRef<T const> test (source);
+        if (not test->check()) {
+            return nullopt;
+        }
+
+        return test;
+    }
+
+    template<class SourceT>
+    static optional<NodeRef<T const>> checked(
+        optional<NodeRef<SourceT const>> const & source,
+        typename std::enable_if<
+            std::is_base_of<T, SourceT>::value
+            or std::is_base_of<SourceT, T>::value
+            or std::is_same<T, SourceT>::value,
+            void *
+        >::type = nullptr
+    ) {
+        if (not source) {
+            return nullopt;
+        }
+
+        NodeRef<T const> test (*source);
+        if (not test->check()) {
+            return nullopt;
+        }
+
+        return test;
+    }
+
+    template<class SourceT>
+    static optional<NodeRef<T>> checked(
+        NodeRef<SourceT> const & source,
+        typename std::enable_if<
+            std::is_base_of<T, SourceT>::value
+            or std::is_base_of<SourceT, T>::value
+            or std::is_same<T, SourceT>::value,
+            void *
+        >::type = nullptr
+    ) {
+        NodeRef<T> test (source);
+        if (not test->check()) {
+            return nullopt;
+        }
+
+        return test;
+    }
+
+    template<class SourceT>
+    static optional<NodeRef<T>> checked(
+        optional<NodeRef<SourceT>> const & source,
+        typename std::enable_if<
+            std::is_base_of<T, SourceT>::value
+            or std::is_base_of<SourceT, T>::value
+            or std::is_same<T, SourceT>::value,
+            void *
+        >::type = nullptr
+    ) {
+        if (not source) {
+            return nullopt;
+        }
+
+        NodeRef<T> test (*source);
+        if (not test->check()) {
+            return nullopt;
+        }
+
+        return test;
+    }
 };
 
 // we moc this file, though whether there are any QObjects or not may vary

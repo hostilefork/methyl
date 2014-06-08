@@ -608,7 +608,20 @@ public:
     {
         return getNodePrivate().compare(other.getNode().getNodePrivate()) == -1;
     }
+
+    ///
+    /// Downcasting assistance
+    ///
+protected:
+    virtual bool check() const {
+        // This checks to the *most derived* structure in the accessor
+        // It will not call base class checks on the structure, you can
+        // do that yourself though in your override.
+        return true;
+    }
+
 };
+
 
 // we moc this file, though whether there are any QObjects or not may vary
 // this dummy object suppresses the warning "No relevant classes found" w/moc
