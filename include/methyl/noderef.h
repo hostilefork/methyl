@@ -45,6 +45,20 @@ class NodeRef<T const> {
         "NodeRef<> may only be parameterized with a class derived from Node"
     );
 
+private:
+    // Right now it's too labor intensive to forward declare all of Node,
+    // so we just cook up something with the same footprint and make sure
+    // the parameter hasn't added any data members or multiple inheritance
+    class FakeNode {
+        NodePrivate * _nodePrivate;
+        shared_ptr<Context> _context;
+        virtual ~FakeNode() {}
+    };
+    static_assert(
+        sizeof(T) == sizeof(FakeNode),
+        "Classes derived from Node must not add any new data members"
+    );
+
 template<class> friend struct std::hash;
 
 protected:

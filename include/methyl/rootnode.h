@@ -45,6 +45,20 @@ class RootNode {
         "RootNode<> may not be parameterized by a const Node accessor"
     );
 
+private:
+    // Right now it's too labor intensive to forward declare all of Node,
+    // so we just cook up something with the same footprint and make sure
+    // the parameter hasn't added any data members or multiple inheritance
+    class FakeNode {
+        NodePrivate * _nodePrivate;
+        shared_ptr<Context> _context;
+        virtual ~FakeNode() {}
+    };
+    static_assert(
+        sizeof(T) == sizeof(FakeNode),
+        "Classes derived from Node must not add any new data members"
+    );
+
 protected:
     T _nodeDoNotUseDirectly;
 
