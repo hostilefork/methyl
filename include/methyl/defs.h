@@ -78,7 +78,7 @@ using std::experimental::make_optional;
 //
 inline optional<uint> maybeGetAsUInt(QString const & str) {
     bool ok;
-    uint const value (str.toUInt(&ok));
+    uint const value = str.toUInt(&ok);
     if (not ok)
         return nullopt;
     return optional<uint>(value);
@@ -86,7 +86,7 @@ inline optional<uint> maybeGetAsUInt(QString const & str) {
 
 inline optional<int> maybeGetAsInt(QString const & str) {
     bool ok;
-    int const value (str.toInt(&ok));
+    int const value = str.toInt(&ok);
     if (not ok)
         return nullopt;
     return optional<int>(value);
