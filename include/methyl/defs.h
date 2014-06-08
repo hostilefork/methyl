@@ -53,6 +53,10 @@ using std::tie;
 // apps, so I currently have to use xstd::optional in some builds.  The
 // issue should be fixed in C++14.
 //
+// For inclusion issues, see:
+//
+//     https://github.com/hostilefork/methyl/issues/21
+//
 #ifndef USE_XSTD_OPTIONAL
 #include "xstd-optional/optional.hpp"
 using xstd::optional;
