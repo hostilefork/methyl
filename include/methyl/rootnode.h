@@ -53,6 +53,9 @@ friend class Engine;
 template<class> friend class RootNode;
 template<class> friend class NodeRef;
 
+template<class T1, class T2> friend
+bool operator==(RootNode<T1> const & x, RootNode<T2> const & y);
+
 private:
     T & getNode()
         { return _nodeDoNotUseDirectly; }
@@ -195,6 +198,12 @@ public:
 // we moc this file, though whether there are any QObjects or not may vary
 // this dummy object suppresses the warning "No relevant classes found" w/moc
 class ROOTNODE_no_moc_warning : public QObject { Q_OBJECT };
+
+// Consider other operators
+template<class T1, class T2>
+bool operator==(RootNode<T1> const & x, RootNode<T2> const & y) {
+    return x.getNodeRef() == y.getNodeRef();
+}
 
 }
 
