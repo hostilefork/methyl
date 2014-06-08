@@ -623,8 +623,14 @@ class NODE_no_moc_warning : public QObject { Q_OBJECT };
 // Under those rules we can't use Q_DECLARE_METATYPE_1ARG because there is no
 // public default constructor.  Being able to do default construction instead
 // of using optional<NodeRef<T>> would defer to runtime "optional-ness" in
-// the baseline declaration of node references that we wish to avoid.  Perhaps
-// it is possible to get optional<NodeRef<T>> to work
-/* Q_DECLARE_METATYPE_TEMPLATE_1ARG(NodeRef) */
+// the baseline declaration of node references that we wish to avoid.  Hence
+// because they insist, you can only pass optional<NodeRef<T>> as signal or
+// slot parameters.
+
+Q_DECLARE_METATYPE(optional<methyl::NodeRef<methyl::Node const>>)
+Q_DECLARE_METATYPE(optional<methyl::NodeRef<methyl::Node>>)
+
+// Could this be used?  I don't know.  Maybe.  But just use the coercions.
+// Q_DECLARE_METATYPE_TEMPLATE_1ARG(something)
 
 #endif

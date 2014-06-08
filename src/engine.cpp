@@ -1,5 +1,5 @@
 //
-// Engine.cpp
+// engine.cpp
 // This file is part of Methyl
 // Copyright (C) 2002-2014 HostileFork.com
 //
@@ -19,7 +19,7 @@
 // See http://methyl.hostilefork.com/ for more information on this project
 //
 
-#include "methyl/Engine.h"
+#include "methyl/engine.h"
 
 namespace methyl {
 
@@ -31,6 +31,9 @@ Engine::Engine() :
 {
 	hopefully(globalEngine == NULL, HERE);
 	globalEngine = this;
+
+    qRegisterMetaType<optional<NodeRef<Node const>>>("optional<NodeRef<Node const>>>");
+    qRegisterMetaType<optional<NodeRef<Node>>>("optional<NodeRef<Node>>>");
 }
 
 Engine::~Engine()
