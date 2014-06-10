@@ -34,6 +34,7 @@ namespace methyl {
 // the node.
 //
 
+
 ///
 /// NodeRef for const case, -> returns a const Node *
 ///
@@ -231,15 +232,18 @@ public:
     }
 
 public:
-    static optional<NodeRef<T const>> maybeGetFromId(Identity const & id) {
-        NodePrivate const * optNodePrivate = NodePrivate::maybeGetFromId(id);
-        if (not optNodePrivate) {
+    static optional<NodeRef<T>> maybeGetFromId(Identity const & id) {
+        NodePrivate const * nodePrivate = NodePrivate::maybeGetFromId(id);
+        if (not nodePrivate) {
             return nullopt;
         }
-        return NodeRef<T const> (
-            optNodePrivate,
+        // If you don't want it to be run as "checked", then just pass in
+        // Node as the type you're asking for.  Review a better way of doing
+        // this...
+        return NodeRef<T>::checked(NodeRef<T const> (
+            nodePrivate,
             make_shared<Context> (Observer::create(HERE))
-        );
+        ));
     }
 };
 
