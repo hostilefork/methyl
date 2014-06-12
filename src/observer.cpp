@@ -196,7 +196,7 @@ void Observer::getLastLabel(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::hasNextLabel(
+void Observer::hasLabelAfter(
     bool const & result,
     methyl::NodePrivate const & thisNode,
     methyl::Label const & label
@@ -207,7 +207,7 @@ void Observer::hasNextLabel(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::getNextLabel(
+void Observer::getLabelAfter(
     methyl::Label const & result,
     methyl::NodePrivate const & thisNode,
     methyl::Label const & label
@@ -218,7 +218,7 @@ void Observer::getNextLabel(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::hasPreviousLabel(
+void Observer::hasLabelBefore(
     bool const & result,
     methyl::NodePrivate const & thisNode,
     methyl::Label const & label
@@ -229,7 +229,7 @@ void Observer::hasPreviousLabel(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::getPreviousLabel(
+void Observer::getLabelBefore(
     methyl::Label const & result,
     methyl::NodePrivate const & thisNode,
     methyl::Label const & label

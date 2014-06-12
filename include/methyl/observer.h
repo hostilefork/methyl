@@ -243,25 +243,25 @@ public:
         methyl::NodePrivate const & thisNode
     );
 
-    void hasNextLabel(
+    void hasLabelAfter(
         bool const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void getNextLabel(
+    void getLabelAfter(
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void hasPreviousLabel(
+    void hasLabelBefore(
         bool const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void getPreviousLabel(
+    void getLabelBefore(
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label

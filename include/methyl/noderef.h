@@ -201,11 +201,11 @@ public:
 
         NodePrivate const * thisRoot = &getNode().getNodePrivate();
         while (thisRoot->hasParent()) {
-            thisRoot = &thisRoot->getParent();
+            thisRoot = &thisRoot->getParent(HERE);
         }
         NodePrivate * mutableRoot = &mutableNeighbor.getNode().getNodePrivate();
         while (mutableRoot->hasParent()) {
-            mutableRoot = &mutableRoot->getParent();
+            mutableRoot = &mutableRoot->getParent(HERE);
         }
         hopefully(mutableRoot == thisRoot, HERE);
 
