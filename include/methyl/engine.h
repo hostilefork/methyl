@@ -30,8 +30,9 @@
 
 namespace methyl {
 
-// At the moment, there is a standard label for the name of a node.
-extern const Label globalLabelName;
+// REVIEW: Other general classes to keep people from reinventing common
+// needs?
+
 
 // The methyl::Engine is responsible for managing the opening and
 // closing of databases.  It holds the global state relevant to

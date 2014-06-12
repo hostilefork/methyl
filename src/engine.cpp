@@ -25,6 +25,51 @@ namespace methyl {
 
 Label const globalLabelName (HERE);
 
+//
+// ERROR
+//
+methyl::Tag const globalTagError (HERE);
+methyl::Tag const globalTagCancellation (HERE);
+methyl::Label const globalLabelCausedBy (HERE);
+
+methyl::RootNode<Error> Error::makeCancellation()
+{
+    return methyl::RootNode<Error>::create(globalTagCancellation);
+}
+
+bool Error::wasCausedByCancellation() const
+{
+    auto current = make_optional(thisNodeAs<Error const>());
+    do {
+        if ((*current)->hasTagEqualTo(globalTagCancellation)) {
+            // should be terminal.  TODO: but what about comments?
+            hopefully(not (*current)->hasAnyLabels(), HERE);
+            return true;
+        }
+        if ((*current)->hasLabel(globalLabelCausedBy)) {
+            current = (*current)->getFirstChildInLabel<Error>(globalLabelCausedBy, HERE);
+        } else {
+            current = nullopt;
+        }
+    } while (current);
+    return false;
+}
+
+QString Error::getDescription() const
+{
+    QString result;
+    auto tagNode = maybeGetTagNode();
+    if (tagNode and (*tagNode)->hasLabel(methyl::globalLabelName)) {
+        auto nameNode = (*tagNode)->getFirstChildInLabel(methyl::globalLabelName, HERE);
+        result = nameNode->getText(HERE);
+        // caused by?  how to present...
+    } else {
+        result = QString("Error Code ID: ") + Base64StringFromUuid(this->getTag(HERE).toUuid());
+    }
+    return result;
+}
+
+
 Engine::Engine() :
     _document (),
     _mapIdToNode ()

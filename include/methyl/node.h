@@ -623,6 +623,46 @@ protected:
 };
 
 
+// At the moment, there is a standard label for the name of a node.
+extern const Label globalLabelName;
+
+// We also create a special class to represent a notion of "Emptiness"
+// that can have no tags.  I thought it was a unique enough name that isn't
+// overloaded yet still has meaning.  (Terminal is weird, Terminator is weird,
+// going back to the chemical analogy and calling it "Hydrogen" since it
+// "terminates the change and can no longer bond" is even more bonkers.)
+
+class Emptiness : public methyl::Node {
+public:
+    static RootNode<Emptiness> create() {
+        return RootNode<Emptiness>::createText("");
+    }
+
+    bool check() const override
+    {
+        return hasTextEqualTo("");
+    }
+};
+
+// Error signals in benzene are really just Benzene node trees
+// This means some contexts may choose to place the errors into the document
+// But if an error is returned to the UI, it will render it
+
+extern const Tag globalTagError; // all errors should have this tag.
+extern const Tag globalTagCancellation; // does this need a node too?
+extern const Label globalLabelCausedBy;
+
+class Error : public methyl::Node
+{
+public:
+    static methyl::RootNode<Error> makeCancellation();
+
+public:
+    bool wasCausedByCancellation() const;
+    QString getDescription() const;
+};
+
+
 // we moc this file, though whether there are any QObjects or not may vary
 // this dummy object suppresses the warning "No relevant classes found" w/moc
 class NODE_no_moc_warning : public QObject { Q_OBJECT };
