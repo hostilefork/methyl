@@ -88,18 +88,24 @@ public:
     }
 
     template <class NodeType>
-    NodeRef<NodeType const> reconstituteNode(
+    optional<NodeRef<NodeType const>> reconstituteNode(
         NodePrivate const * nodePrivate,
         shared_ptr<Context> context
     ) {
+        if (not nodePrivate)
+            return nullopt;
+
         return NodeRef<NodeType const> (nodePrivate, context);
     }
 
     template <class NodeType>
-    RootNode<NodeType> reconstituteRootNode(
+    optional<RootNode<NodeType>> reconstituteRootNode(
         NodePrivate * nodePrivateOwned,
         shared_ptr<Context> context
     ) {
+        if (not nodePrivateOwned)
+            return nullopt;
+
         return RootNode<NodeType> (
             unique_ptr<NodePrivate> (nodePrivateOwned),
             context
@@ -107,20 +113,30 @@ public:
     }
 
     std::pair<NodePrivate const *, shared_ptr<Context>> dissectNode(
-        NodeRef<Node const> node
+        optional<NodeRef<Node const>> node
     ) {
+        if (not node)
+            return std::pair<NodePrivate const *, shared_ptr<Context>> (
+                nullptr, nullptr
+            );
+
         return std::pair<NodePrivate const *, shared_ptr<Context>> (
-            &node.getNode().getNodePrivate(),
-            node.getNode().getContext()
+            &(*node).getNode().getNodePrivate(),
+            (*node).getNode().getContext()
         );
     }
 
     std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> dissectRootNode(
-        RootNode<Node> node
+        optional<RootNode<Node>> node
     ) {
+        if (not node)
+            return std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> (
+                nullptr, nullptr
+            );
+
         return std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> (
-            node.extractNodePrivate(),
-            node.getNode().getContext()
+            (*node).extractNodePrivate(),
+            (*node).getNode().getContext()
         );
     }
 
