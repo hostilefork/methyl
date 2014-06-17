@@ -43,10 +43,10 @@ class Engine
 friend class methyl::NodePrivate;
 
 private:
-	// Currently there is only one document in existence
-	// Over the long term there will have to probably be support for more
-	// Including scratch documents if they are memory mapped files
-	QDomDocument _document;
+    // Currently there is only one document in existence
+    // Over the long term there will have to probably be support for more
+    // Including scratch documents if they are memory mapped files
+    QDomDocument _document;
     QMap<QUuid, methyl::NodePrivate *> _mapIdToNode;
 
 public:
@@ -79,7 +79,7 @@ public:
         NodeRef<Node const> node
     ) {
         // do this more efficiently?
-        auto blindObserver = shared_ptr<Observer>(new Observer(HERE));
+        auto blindObserver = Observer::create(HERE);
         blindObserver->markBlind();
         return NodeRef<Node const>(
             node.getNode().getNodePrivate(),
@@ -162,9 +162,9 @@ public:
     }
 
 public:
-	explicit Engine ();
+    explicit Engine ();
 
-	virtual ~Engine ();
+    virtual ~Engine ();
 };
 
 extern Engine* globalEngine;

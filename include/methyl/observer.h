@@ -36,8 +36,8 @@ namespace methyl {
 // classes in that header.  Hence we cannot include "node.h".  These
 // forward definitions are in order to  directly into the node.h
 class NodePrivate;
-template<class> class NodeRef;
-template<class> class RootNode;
+template <class> class NodeRef;
+template <class> class RootNode;
 typedef class Identity Tag;
 
 // A goal is to try and get NodePrivate and all privileged operations
@@ -67,8 +67,8 @@ class Observer : public QObject, listed<Observer*> {
     Q_OBJECT
 
     friend class Engine;
-    template<class> friend class NodeRef;
-    template<class> friend class RootNode;
+    template <class> friend class NodeRef;
+    template <class> friend class RootNode;
 
 public:
     // simple list to start, will do more later

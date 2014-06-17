@@ -75,7 +75,7 @@ inline optional<int> maybeGetAsInt(QString const & str) {
 // so if you have a function that gives a result like that then these will let
 // you convert them into optional values of that type from the result
 
-template<typename T>
+template <typename T>
 optional<T> maybeIf(bool (*resultTestFunc)(T& result), T result) {
     if (resultTestFunc(result)) {
         return result;
@@ -83,7 +83,7 @@ optional<T> maybeIf(bool (*resultTestFunc)(T& result), T result) {
     return nullopt;
 }
 
-template<typename T>
+template <typename T>
 optional<T> maybeIfNotValue(T const & value, T result) {
     if (result != value) {
         return result;
@@ -109,14 +109,14 @@ using std::make_shared;
 //
 //     http://stackoverflow.com/questions/7038357/
 //
-template<typename T, typename... Args>
+template <typename T, typename... Args>
 std::unique_ptr<T> make_unique(Args&&... args)
 {
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
 // Should probably be in hoist.  I don't know why it isn't.  Review.
-inline void notImplemented(const QString& routine, codeplace const & cp) {
+inline void notImplemented(QString const & routine, codeplace const & cp) {
     hopefullyNotReached(QString("Not Implemented: ") + routine, cp);
 }
 
@@ -182,10 +182,10 @@ typedef Identity Tag; // so it goes....
 class Node;
 
 // https://github.com/hostilefork/methyl/issues/2
-template<class NodeType> class NodeRef;
+template <class> class NodeRef;
 
 // https://github.com/hostilefork/methyl/issues/2
-template<class NodeType> class RootNode;
+template <class> class RootNode;
 
 class Engine;
 

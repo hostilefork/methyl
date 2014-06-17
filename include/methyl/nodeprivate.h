@@ -42,15 +42,15 @@ class NodePrivate final {
 private:
     // Nodes may have data or they may have labeled children (not both)
     // If node has children:
-    // 	tag is the Uuid of the node's Tag in Base64
-    // 	attribute "id" is Uuid of the node's Identity in Base64
-    // 	labels are QDomElement children of this element
-    //		their tags are the label Identity
-    //		children of these labels are parent's children in that label
+    //  tag is the Uuid of the node's Tag in Base64
+    //  attribute "id" is Uuid of the node's Identity in Base64
+    //  labels are QDomElement children of this element
+    //      their tags are the label Identity
+    //      children of these labels are parent's children in that label
     //  If node has data:
-    //	tag is the string "data"
-    //	attribute "id" is Uuid of the node's Identity in Base64
-    //	attribute "data" is the node's UNICODE data string
+    //  tag is the string "data"
+    //  attribute "id" is Uuid of the node's Identity in Base64
+    //  attribute "data" is the node's UNICODE data string
     QDomElement _element;
 
 protected:
@@ -58,7 +58,7 @@ protected:
     // final class: need not be virtual!  Rare case.
     ~NodePrivate(); 
 public:
-    template<typename> friend struct std::default_delete;
+    template <typename> friend struct std::default_delete;
 
 // construction / destruction are private
 // clients should use static New() method

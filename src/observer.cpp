@@ -46,10 +46,10 @@ void Observer::getFirstChildInLabel(
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
-	// changes to first child in any label will invalidate
+    // changes to first child in any label will invalidate
     addSeenFlags(thisNode, SawFirstChild, HERE);
-	// effectively, we have been told the result has no previous siblings and
-	// its label in parent is label!  So no need for SawLabelInParent or
+    // effectively, we have been told the result has no previous siblings and
+    // its label in parent is label!  So no need for SawLabelInParent or
     // SawHasPreviousSiblingInLabel
 }
 
@@ -60,9 +60,9 @@ void Observer::getLastChildInLabel(
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
-	// changes to last child in any label will invalidate
+    // changes to last child in any label will invalidate
     addSeenFlags(thisNode, SawLastChild, HERE);
-	// effectively, we have been told the result has no next siblings and
+    // effectively, we have been told the result has no next siblings and
     // its label in parent is label!  So no need for SawLabelInParent or
     // SawHasNextSiblingInLabel
 }
@@ -341,12 +341,12 @@ void Observer::insertChildAsFirstInLabel(
                 observer.markBlind();
                 return;
             }
-		} else {
+        } else {
             if (observer.maybeObserved(thisNode, SawHasLabel)) {
                 observer.markBlind();
                 return;
             }
-		}
+        }
     });
 }
 
@@ -391,12 +391,12 @@ void Observer::insertChildAsLastInLabel(
                 observer.markBlind();
                 return;
             }
-		} else {
+        } else {
             if (observer.maybeObserved(thisNode, SawHasLabel)) {
                 observer.markBlind();
                 return;
             }
-		}
+        }
     });
 }
 
@@ -472,7 +472,7 @@ void Observer::detach(
             return;
         }
 
-		if (replacement) {
+        if (replacement) {
             if (observer.maybeObserved(*replacement,
                 SawHasParent
                 | SawParent
@@ -483,8 +483,8 @@ void Observer::detach(
                 observer.markBlind();
                 return;
             }
-		}
-		if (previousChild) {
+        }
+        if (previousChild) {
             if (observer.maybeObserved(*previousChild, 
                 SawNextSiblingInLabel
             )) {
@@ -502,14 +502,14 @@ void Observer::detach(
                 observer.markBlind();
                 return;
             }
-		} else {
-			// first child is changing...
+        } else {
+            // first child is changing...
             if (observer.maybeObserved(parent, SawFirstChild)) {
                 observer.markBlind();
                 return;
             }
-		}
-		if (nextChild) {
+        }
+        if (nextChild) {
             if (observer.maybeObserved(*nextChild, SawPreviousSiblingInLabel)) {
                 observer.markBlind();
                 return;
@@ -523,13 +523,13 @@ void Observer::detach(
                 observer.markBlind();
                 return;
             }
-		} else {
-			// last child is changing...
+        } else {
+            // last child is changing...
             if (observer.maybeObserved(parent, SawLastChild)) {
                 observer.markBlind();
                 return;
             }
-		}
+        }
     });
 }
 

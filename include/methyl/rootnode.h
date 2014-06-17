@@ -33,7 +33,7 @@ namespace methyl {
 /// OWNERSHIP RESPONSIBILITY ROOT NODE WRAPPER
 ///
 
-template<class T = Node>
+template <class T = Node>
 class RootNode {
     static_assert(
         std::is_base_of<Node, T>::value,
@@ -64,12 +64,12 @@ protected:
 
 friend class Node;
 friend class Engine;
-template<class> friend class RootNode;
-template<class> friend class NodeRef;
+template <class> friend class RootNode;
+template <class> friend class NodeRef;
 
-template<class> friend struct std::hash;
+template <class> friend struct std::hash;
 
-template<class T1, class T2> friend
+template <class T1, class T2> friend
 bool operator==(RootNode<T1> const & x, RootNode<T2> const & y);
 
 private:
@@ -129,11 +129,11 @@ public:
     }
 
     // Only allow implicit casts if the accessor is going toward a base
-    template<class OtherT>
+    template <class U>
     RootNode (
-        RootNode<OtherT> other,
+        RootNode<U> other,
         typename std::enable_if<
-            std::is_base_of<T, OtherT>::value,
+            std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) noexcept :
@@ -144,11 +144,11 @@ public:
     {
     }
 
-    template<class OtherT>
+    template <class U>
     explicit RootNode (
-        RootNode<OtherT> other,
+        RootNode<U> other,
         typename std::enable_if<
-            not std::is_base_of<T, OtherT>::value,
+            not std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) noexcept :
@@ -216,7 +216,7 @@ public:
 class ROOTNODE_no_moc_warning : public QObject { Q_OBJECT };
 
 // Consider other operators
-template<class T1, class T2>
+template <class T1, class T2>
 bool operator==(RootNode<T1> const & x, RootNode<T2> const & y) {
     return x.getNodeRef() == y.getNodeRef();
 }

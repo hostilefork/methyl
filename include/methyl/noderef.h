@@ -39,7 +39,7 @@ namespace methyl {
 /// NodeRef for const case, -> returns a const Node *
 ///
 
-template<class T>
+template <class T>
 class NodeRef<T const> {
     static_assert(
         std::is_base_of<Node, typename std::remove_const<T>::type>::value,
@@ -60,7 +60,7 @@ private:
         "Classes derived from Node must not add any new data members"
     );
 
-template<class> friend struct std::hash;
+template <class> friend struct std::hash;
 
 protected:
     // if const, assignment would be ill formed.  But we don't want to
@@ -70,14 +70,14 @@ protected:
 
 friend class Node;
 friend class Engine;
-template<class> friend class RootNode;
-template<class> friend class NodeRef;
+template <class> friend class RootNode;
+template <class> friend class NodeRef;
 
 private:
     NodeRef () = delete;
 
 private:
-    template<class> friend class NodeRef;
+    template <class> friend class NodeRef;
     T const & getNode() const
         { return _nodeDoNotUseDirectly; }
 
@@ -96,11 +96,11 @@ private:
     }
 
 public:
-    template<class OtherT>
+    template <class U>
     NodeRef (
-        NodeRef<OtherT const> const & other,
+        NodeRef<U const> const & other,
         typename std::enable_if<
-            std::is_base_of<T, OtherT>::value,
+            std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -111,11 +111,11 @@ public:
     {
     }
 
-    template<class OtherT>
+    template <class U>
     NodeRef (
-        NodeRef<OtherT> const & other,
+        NodeRef<U> const & other,
         typename std::enable_if<
-            std::is_base_of<T, OtherT>::value,
+            std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -126,11 +126,11 @@ public:
     {
     }
 
-    template<class OtherT>
+    template <class U>
     NodeRef (
-        RootNode<OtherT> const & other,
+        RootNode<U> const & other,
         typename std::enable_if<
-            std::is_base_of<T, OtherT>::value,
+            std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -141,11 +141,11 @@ public:
     {
     }
 
-    template<class OtherT>
+    template <class U>
     explicit NodeRef (
-        NodeRef<OtherT const> const & other,
+        NodeRef<U const> const & other,
         typename std::enable_if<
-            not std::is_base_of<T, OtherT>::value,
+            not std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -156,11 +156,11 @@ public:
     {
     }
 
-    template<class OtherT>
+    template <class U>
     explicit NodeRef (
-        RootNode<OtherT> const & other,
+        RootNode<U> const & other,
         typename std::enable_if<
-            not std::is_base_of<T, OtherT>::value,
+            not std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -177,22 +177,22 @@ public:
         { }
 
 public:
-    template<class OtherT>
-    bool operator== (NodeRef<OtherT const> const & other) const {
+    template <class U>
+    bool operator== (NodeRef<U const> const & other) const {
         return getNode().getNodePrivate() == other.getNode().getNodePrivate();
     }
 
-    template<class OtherT>
-    bool operator!= (NodeRef<OtherT const> const & other) const {
+    template <class U>
+    bool operator!= (NodeRef<U const> const & other) const {
         return getNode().getNodePrivate() != other.getNode().getNodePrivate();
     }
 
 public:
-    template<class OtherT>
+    template <class U>
     NodeRef<T> nonConst(
-        NodeRef<OtherT> const & mutableNeighbor,
+        NodeRef<U> const & mutableNeighbor,
         typename std::enable_if<
-            not std::is_const<OtherT>::value, void *
+            not std::is_const<U>::value, void *
         >::type = nullptr
     ) const {
         // applies if could have gotten the privileges by walking other's tree
@@ -224,8 +224,8 @@ public:
     }
 
 public:
-    template<class OtherT>
-    bool isSubtreeCongruentTo(NodeRef<OtherT const> const & other) const {
+    template <class U>
+    bool isSubtreeCongruentTo(NodeRef<U const> const & other) const {
         return getNode().getNodePrivate().isSubtreeCongruentTo(
             other.getNode().getNodePrivate()
         );
@@ -250,15 +250,15 @@ public:
 
 
 // NodeRef for non-const case, -> returns a non-const Node *
-template<class T = Node const>
+template <class T = Node const>
 class NodeRef : public NodeRef<T const> {
 
 friend class Node;
 friend class Engine;
-template<class> friend class RootNode;
-template<class> friend class NodeRef;
+template <class> friend class RootNode;
+template <class> friend class NodeRef;
 
-template<class> friend struct std::hash;
+template <class> friend struct std::hash;
 
 private:
     T & getNode() const {
@@ -280,11 +280,11 @@ private:
     }
 
 public:
-    template<class OtherT>
+    template <class U>
     NodeRef (
-        NodeRef<OtherT> const & other,
+        NodeRef<U> const & other,
         typename std::enable_if<
-            std::is_base_of<T, OtherT>::value,
+            std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -295,11 +295,11 @@ public:
     {
     }
 
-    template<class OtherT>
+    template <class U>
     NodeRef (
-        RootNode<OtherT> const & other,
+        RootNode<U> const & other,
         typename std::enable_if<
-            std::is_base_of<T, OtherT>::value,
+            std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -310,11 +310,11 @@ public:
     {
     }
 
-    template<class OtherT>
+    template <class U>
     explicit NodeRef (
-        NodeRef<OtherT> const & other,
+        NodeRef<U> const & other,
         typename std::enable_if<
-            not std::is_base_of<T, OtherT>::value,
+            not std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -325,11 +325,11 @@ public:
     {
     }
 
-    template<class OtherT>
+    template <class U>
     explicit NodeRef (
-        RootNode<OtherT> const & other,
+        RootNode<U> const & other,
         typename std::enable_if<
-            not std::is_base_of<T, OtherT>::value,
+            not std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) :
@@ -365,8 +365,8 @@ public:
         return RootNode<T> (std::move(result), getNode().getContext());
     }
 
-    template<class OtherT>
-    RootNode<T> replaceWith(RootNode<OtherT> other) {
+    template <class U>
+    RootNode<T> replaceWith(RootNode<U> other) {
         Label label;
         NodePrivate const * nodeParent;
         NodePrivate const * previousChild;
@@ -409,13 +409,13 @@ public:
     ///
 
 public:
-    template<class SourceT>
+    template <class U>
     static optional<NodeRef<T const>> checked(
-        NodeRef<SourceT const> const & source,
+        NodeRef<U const> const & source,
         typename std::enable_if<
-            std::is_base_of<T, SourceT>::value
-            or std::is_base_of<SourceT, T>::value
-            or std::is_same<T, SourceT>::value,
+            std::is_base_of<T, U>::value
+            or std::is_base_of<U, T>::value
+            or std::is_same<T, U>::value,
             void *
         >::type = nullptr
     ) {
@@ -427,13 +427,13 @@ public:
         return test;
     }
 
-    template<class SourceT>
+    template <class U>
     static optional<NodeRef<T const>> checked(
-        optional<NodeRef<SourceT const>> const & source,
+        optional<NodeRef<U const>> const & source,
         typename std::enable_if<
-            std::is_base_of<T, SourceT>::value
-            or std::is_base_of<SourceT, T>::value
-            or std::is_same<T, SourceT>::value,
+            std::is_base_of<T, U>::value
+            or std::is_base_of<U, T>::value
+            or std::is_same<T, U>::value,
             void *
         >::type = nullptr
     ) {
@@ -449,13 +449,13 @@ public:
         return test;
     }
 
-    template<class SourceT>
+    template <class U>
     static optional<NodeRef<T>> checked(
-        NodeRef<SourceT> const & source,
+        NodeRef<U> const & source,
         typename std::enable_if<
-            std::is_base_of<T, SourceT>::value
-            or std::is_base_of<SourceT, T>::value
-            or std::is_same<T, SourceT>::value,
+            std::is_base_of<T, U>::value
+            or std::is_base_of<U, T>::value
+            or std::is_same<T, U>::value,
             void *
         >::type = nullptr
     ) {
@@ -467,13 +467,13 @@ public:
         return test;
     }
 
-    template<class SourceT>
+    template <class U>
     static optional<NodeRef<T>> checked(
-        optional<NodeRef<SourceT>> const & source,
+        optional<NodeRef<U>> const & source,
         typename std::enable_if<
-            std::is_base_of<T, SourceT>::value
-            or std::is_base_of<SourceT, T>::value
-            or std::is_same<T, SourceT>::value,
+            std::is_base_of<T, U>::value
+            or std::is_base_of<U, T>::value
+            or std::is_same<T, U>::value,
             void *
         >::type = nullptr
     ) {

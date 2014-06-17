@@ -44,11 +44,11 @@ namespace std {
     // Need this to get std::unordered_set to work on NodeRef
     // http://stackoverflow.com/questions/8157937/
 
-    template<class NodeType>
-    struct hash<methyl::NodeRef<NodeType>>
+    template <class T>
+    struct hash<methyl::NodeRef<T>>
     {
         size_t operator()(
-            methyl::NodeRef<NodeType> const & nodeRef
+            methyl::NodeRef<T> const & nodeRef
         ) const {
             return std::hash<methyl::NodePrivate const *>()(
                 &nodeRef.getNode().getNodePrivate()
@@ -59,12 +59,12 @@ namespace std {
     // Need this to get std::map to work on NodeRef
     // http://stackoverflow.com/a/10734231/211160
 
-    template<class NodeType>
-    struct less<methyl::NodeRef<NodeType>>
+    template <class T>
+    struct less<methyl::NodeRef<T>>
     {
         bool operator()(
-            methyl::NodeRef<NodeType> const & left,
-            methyl::NodeRef<NodeType> const & right
+            methyl::NodeRef<T> const & left,
+            methyl::NodeRef<T> const & right
         ) {
             return left->lowerStructureRankThan(right);
         }
@@ -73,11 +73,11 @@ namespace std {
     // Need this to get std::unordered_set to work on RootNode
     // http://stackoverflow.com/questions/8157937/
 
-    template<class NodeType>
-    struct hash<methyl::RootNode<NodeType>>
+    template <class T>
+    struct hash<methyl::RootNode<T>>
     {
         size_t operator()(
-            methyl::RootNode<NodeType> const & nodeRef
+            methyl::RootNode<T> const & nodeRef
         ) const {
             return std::hash<methyl::NodePrivate const *>()(
                 &nodeRef.getNode().getNodePrivate()
@@ -88,12 +88,12 @@ namespace std {
     // Need this to get std::map to work on NodeRef
     // http://stackoverflow.com/a/10734231/211160
 
-    template<class NodeType>
-    struct less<methyl::RootNode<NodeType>>
+    template <class T>
+    struct less<methyl::RootNode<T>>
     {
         bool operator()(
-            methyl::RootNode<NodeType> const & left,
-            methyl::RootNode<NodeType> const & right
+            methyl::RootNode<T> const & left,
+            methyl::RootNode<T> const & right
         ) {
             return left->lowerStructureRankThan(right);
         }
@@ -115,7 +115,7 @@ class Engine;
 // be able to tell that your class is a subclass of Node
 
 class Node {
-    template<class> friend struct std::hash;
+    template <class> friend struct std::hash;
     friend class Engine;
 
 private:
@@ -124,8 +124,8 @@ private:
     // pokes the NodePrivate in before passing on
     mutable NodePrivate * nodePrivateDoNotUseDirectly;
     mutable shared_ptr<Context> contextDoNotUseDirectly;
-template<class NodeType> friend class NodeRef;
-template<class NodeType> friend class RootNode;
+template <class> friend class NodeRef;
+template <class> friend class RootNode;
     void setInternalProperties(
         NodePrivate * nodePrivate,
         shared_ptr<Context> context
@@ -190,13 +190,13 @@ protected:
     // Unfortunately we wind up in accessors and need a NodeRef for the
     // current node when all we have is a this pointer.  Not a perfect
     // solution--could use some more thought
-    template<class NodeType>
-    NodeRef<NodeType const> thisNodeAs() const {
-        return NodeRef<NodeType const>(getNodePrivate(), getContext());
+    template <class T>
+    NodeRef<T const> thisNodeAs() const {
+        return NodeRef<T const>(getNodePrivate(), getContext());
     }
-    template<class NodeType>
-    NodeRef<NodeType> thisNodeAs() {
-        return NodeRef<NodeType>(getNodePrivate(), getContext());
+    template <class T>
+    NodeRef<T> thisNodeAs() {
+        return NodeRef<T>(getNodePrivate(), getContext());
     }
 
 public:
@@ -237,12 +237,12 @@ public:
         return NodeRef<Node>(result, getContext());
     }
 
-    template<class T>
+    template <class T>
     NodeRef<T const> getParent(codeplace const & cp) const {
         return NodeRef<T>::checked(getParent(cp));
     }
 
-    template<class T>
+    template <class T>
     NodeRef<T> getParent(codeplace const & cp) {
         return NodeRef<T>::checked(getParent(cp));
     }
@@ -259,12 +259,12 @@ public:
         return getParent(HERE);
     }
 
-    template<class T>
+    template <class T>
     optional<NodeRef<T const>> maybeGetParent() const {
         return NodeRef<T>::checked(maybeGetParent());
     }
 
-    template<class T>
+    template <class T>
     optional<NodeRef<T>> maybeGetParent() {
         return NodeRef<T>::checked(maybeGetParent());
     }
@@ -275,8 +275,8 @@ public:
         getObserver()->getLabelInParent(result, getNodePrivate());
         return result;
     }
-    template<class NodeType>
-    bool hasParentEqualTo(NodeRef<NodeType> possibleParent) const {
+    template <class T>
+    bool hasParentEqualTo(NodeRef<T> possibleParent) const {
         // should be a finer-grained micro-observation than this
         optional<NodeRef<Node>> parent = maybeGetParent();
         if (not parent) {
@@ -337,7 +337,7 @@ public:
         return NodeRef<Node const>(*optTagNode, getContext());
     }
 
-    template<class T>
+    template <class T>
     optional<NodeRef<T const>> maybeGetTagNode() const {
         return NodeRef<T>::checked(maybeGetTagNode());
     }
@@ -452,25 +452,25 @@ public:
         return result;
     }
 
-    template<class T>
+    template <class T>
     NodeRef<T const> getFirstChildInLabel(Label const & label, codeplace const & cp) const {
         auto result = NodeRef<T>::checked(getFirstChildInLabel(label, cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
-    template<class T>
+    template <class T>
     NodeRef<T> getFirstChildInLabel(Label const & label, codeplace const & cp) {
         auto result = NodeRef<T>::checked(getFirstChildInLabel(label, cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
-    template<class T>
+    template <class T>
     auto maybeGetFirstChildInLabel(Label const & label) const
         -> optional<NodeRef<T const>>
     {
         return NodeRef<T>::checked(maybeGetFirstChildInLabel(label));
     }
-    template<class T>
+    template <class T>
     auto maybeGetFirstChildInLabel(Label const & label)
         -> optional<NodeRef<T>>
     {
@@ -507,21 +507,21 @@ public:
         return getLastChildInLabel(label, HERE);
     }
 
-    template<class T>
+    template <class T>
     NodeRef<T const> getLastChildInLabel(Label const & label, codeplace const & cp) const {
         return NodeRef<T>::checked(getLastChildInLabel(label, cp));
     }
-    template<class T>
+    template <class T>
     NodeRef<T> getLastChildInLabel(Label const & label, codeplace const & cp) {
         return NodeRef<T>::checked(getLastChildInLabel(label, cp));
     }
-    template<class T>
+    template <class T>
     auto maybeGetLastChildInLabel(Label const & label) const
         -> optional<NodeRef<T const>>
     {
         return NodeRef<T>::checked(maybeGetLastChildInLabel(label));
     }
-    template<class T>
+    template <class T>
     auto maybeGetLastChildInLabel(Label const & label)
         -> optional<NodeRef<T>>
     {
@@ -561,25 +561,25 @@ public:
     }
 
 
-    template<class T>
+    template <class T>
     NodeRef<T const> getNextSiblingInLabel(codeplace const & cp) const {
         auto result = NodeRef<T>::checked(getNextSiblingInLabel(cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
-    template<class T>
+    template <class T>
     NodeRef<T> getNextSiblingInLabel(codeplace const & cp) {
         auto result = NodeRef<T>::checked(getNextSiblingInLabel(cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
-    template<class T>
+    template <class T>
     auto maybeGetNextSiblingInLabel() const
         -> optional<NodeRef<T const>>
     {
         return NodeRef<T>::checked(maybeGetNextSiblingInLabel());
     }
-    template<class T>
+    template <class T>
     auto maybeGetNextSiblingInLabel()
         -> optional<NodeRef<T>>
     {
@@ -618,25 +618,25 @@ public:
         return getPreviousSiblingInLabel(HERE);
     }
 
-    template<class T>
+    template <class T>
     NodeRef<T const> getPreviousSiblingInLabel(codeplace const & cp) const {
         auto result = NodeRef<T>::checked(maybeGetPreviousSiblingInLabel());
         hopefully(result != nullopt, cp);
         return *result;
     }
-    template<class T>
+    template <class T>
     NodeRef<T> getPreviousSiblingInLabel(codeplace const & cp) {
         auto result = NodeRef<T>::checked(maybeGetPreviousSiblingInLabel());
         hopefully(result != nullopt, cp);
         return *result;
     }
-    template<class T>
+    template <class T>
     auto maybeGetPreviousSiblingInLabel() const
         -> optional<NodeRef<T const>>
     {
         return NodeRef<T>::checked(maybeGetPreviousSiblingInLabel());
     }
-    template<class T>
+    template <class T>
     auto maybeGetPreviousSiblingInLabel()
         -> optional<NodeRef<T>>
     {
@@ -671,9 +671,9 @@ public:
     }
 
 public:
-    template<class NodeType>
-    NodeRef<NodeType> insertChildAsFirstInLabel(
-        RootNode<NodeType> newChild,
+    template <class T>
+    NodeRef<T> insertChildAsFirstInLabel(
+        RootNode<T> newChild,
         Label const & label
     ) {
         NodePrivate const * nextChildInLabel;
@@ -688,11 +688,11 @@ public:
             label,
             nextChildInLabel
         );
-        return NodeRef<NodeType> (result, getContext());
+        return NodeRef<T> (result, getContext());
     }
-    template<class NodeType>
-    NodeRef<NodeType> insertChildAsLastInLabel(
-        RootNode<NodeType> newChild,
+    template <class T>
+    NodeRef<T> insertChildAsLastInLabel(
+        RootNode<T> newChild,
         Label const & label
     ) {
         NodePrivate const * previousChildInLabel;
@@ -707,11 +707,11 @@ public:
             label,
             previousChildInLabel
         );
-        return NodeRef<NodeType> (result, getContext());
+        return NodeRef<T> (result, getContext());
     }
-    template<class NodeType>
-    NodeRef<NodeType> insertSiblingAfter(
-        RootNode<NodeType> newChild
+    template <class T>
+    NodeRef<T> insertSiblingAfter(
+        RootNode<T> newChild
     ) {
         NodePrivate const * nextChildInLabel;
         NodePrivate const * parent;
@@ -739,12 +739,12 @@ public:
             );
         }
 
-        return NodeRef<NodeType> (result, getContext());
+        return NodeRef<T> (result, getContext());
     }
 
-    template<class NodeType>
-    NodeRef<NodeType> insertSiblingBefore(
-        RootNode<NodeType> newChild
+    template <class T>
+    NodeRef<T> insertSiblingBefore(
+        RootNode<T> newChild
     ) {
         NodePrivate const * previousChildInLabel;
         NodePrivate const * parent;
@@ -772,7 +772,7 @@ public:
             );
         }
 
-        return NodeRef<NodeType> (result, getContext());
+        return NodeRef<T> (result, getContext());
     }
     std::vector<RootNode<Node>> detachAnyChildrenInLabel(Label const & label) {
         std::vector<RootNode<Node>> children;
@@ -824,8 +824,8 @@ public:
     // See remarks above about not being sure if I've picked the absolute right
     // invariants for -1 vs +1.  This is going to be canon...encoded in file
     // formats and stuff, it should be gotten right!
-    template<class OtherNodeType>
-    bool lowerStructureRankThan(NodeRef<OtherNodeType const> other) const
+    template <class OtherT>
+    bool lowerStructureRankThan(NodeRef<OtherT const> other) const
     {
         return getNodePrivate().compare(other.getNode().getNodePrivate()) == -1;
     }

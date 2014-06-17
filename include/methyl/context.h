@@ -1,5 +1,5 @@
 //
-// Context.h
+// context.h
 // This file is part of Methyl
 // Copyright (C) 2002-2014 HostileFork.com
 //
@@ -22,7 +22,7 @@
 #ifndef METHYL_CONTEXT_H
 #define METHYL_CONTEXT_H
 
-#include "methyl/Observer.h"
+#include "methyl/observer.h"
 
 namespace methyl {
 
@@ -55,7 +55,6 @@ public:
     virtual ~Context() {};
 };
 
-typedef shared_ptr<Context> contextSharedPointer;
 
 // we moc this file, though whether there are any QObjects or not may vary
 // this dummy object suppresses the warning "No relevant classes found" w/moc
@@ -63,6 +62,6 @@ class CONTEXT_no_moc_warning : public QObject { Q_OBJECT };
 
 }
 
-Q_DECLARE_METATYPE(methyl::contextSharedPointer)
+Q_DECLARE_METATYPE(shared_ptr<methyl::Context>)
 
 #endif // METHYL_CONTEXT_H

@@ -74,8 +74,8 @@ Engine::Engine() :
     _document (),
     _mapIdToNode ()
 {
-	hopefully(globalEngine == NULL, HERE);
-	globalEngine = this;
+    hopefully(globalEngine == nullptr, HERE);
+    globalEngine = this;
 
     qRegisterMetaType<optional<NodeRef<Node const>>>("optional<NodeRef<Node const>>>");
     qRegisterMetaType<optional<NodeRef<Node>>>("optional<NodeRef<Node>>>");
@@ -83,11 +83,11 @@ Engine::Engine() :
 
 Engine::~Engine()
 {
-	hopefully(globalEngine == this, HERE);
-	globalEngine = NULL;
-	hopefully(_mapIdToNode.empty(), HERE);
+    hopefully(globalEngine == this, HERE);
+    globalEngine = nullptr;
+    hopefully(_mapIdToNode.empty(), HERE);
 }
 
-Engine* globalEngine = NULL;
+Engine* globalEngine = nullptr;
 
 } // end namespace methyl
