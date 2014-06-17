@@ -33,42 +33,20 @@ using std::tie;
 //
 // TYPE CONTAINER FOR "OPTIONAL" VALUES
 //
+// See summary of the state of things at:
+// https://github.com/hostilefork/CopyMoveConstrainedOptional
+//
+// For the moment I am expecting that the include search paths will be able
+// to find the optional.hpp file under a directory called "Optional", which
+// is the name and casing of the GitHub repository for the reference
+// implementation.  I myself put it under the methyl/include/methyl
+// directory, which is just for expedience (it's in the .gitignore).
 
-// boost's optional is behind the times, no support for c++11 rvalues and other
-// problems.  Originally I tried patching it myself...thinking it wouldn't be
-// too difficult.  It was a learning experience, to say the least.  I got the
-// basics to work, but as the edge cases began to show up I picked up Daniel
-// Krugler's implementation known as xstd::optional
-//
-//     https://github.com/hostilefork/CopyMoveConstrainedOptional
-//
-// As time wore on, and the C++ standards committee hammered on an "official"
-// optional<> implementation fitting for C++11, I decided I'd check to see how
-// progress with that was going.  I tried using std::experimental::optional,
-// but hit an issue:
-//
-//     https://github.com/akrzemi1/Optional/issues/13
-//
-// That issue does not affect Methyl but it does affect some code in client
-// apps, so I currently have to use xstd::optional in some builds.  The
-// issue should be fixed in C++14.
-//
-// For inclusion issues, see:
-//
-//     https://github.com/hostilefork/methyl/issues/21
-//
-#ifndef USE_XSTD_OPTIONAL
-#include "xstd-optional/optional.hpp"
-using xstd::optional;
-using xstd::nullopt;
-using xstd::make_optional;
-#else
-// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3793.html
 #include "Optional/optional.hpp"
 using std::experimental::optional;
 using std::experimental::nullopt;
 using std::experimental::make_optional;
-#endif
+
 
 //
 // I have some functions that retrieve the QString off of a data node, and
