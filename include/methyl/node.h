@@ -495,18 +495,16 @@ public:
     auto maybeGetLastChildInLabel(Label const & label) const
         -> optional<NodeRef<Node const>>
     {
-        optional<NodeRef<Node>> result;
-        if (hasLabel(label))
-            result = getLastChildInLabel(label, HERE);
-        return result;
+        if (not hasLabel(label))
+            return nullopt;
+        return getLastChildInLabel(label, HERE);
     }
     auto maybeGetLastChildInLabel(Label const & label)
         -> optional<NodeRef<Node>>
     {
-        optional<NodeRef<Node>> result;
-        if (hasLabel(label))
-            result = getLastChildInLabel(label, HERE);
-        return result;
+        if (not hasLabel(label))
+            return nullopt;
+        return getLastChildInLabel(label, HERE);
     }
 
     template<class T>
