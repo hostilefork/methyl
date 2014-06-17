@@ -69,6 +69,36 @@ namespace std {
             return left->lowerStructureRankThan(right);
         }
     };
+
+    // Need this to get std::unordered_set to work on RootNode
+    // http://stackoverflow.com/questions/8157937/
+
+    template<class NodeType>
+    struct hash<methyl::RootNode<NodeType>>
+    {
+        size_t operator()(
+            methyl::RootNode<NodeType> const & nodeRef
+        ) const {
+            return std::hash<methyl::NodePrivate const *>()(
+                &nodeRef.getNode().getNodePrivate()
+            );
+        }
+    };
+
+    // Need this to get std::map to work on NodeRef
+    // http://stackoverflow.com/a/10734231/211160
+
+    template<class NodeType>
+    struct less<methyl::RootNode<NodeType>>
+    {
+        bool operator()(
+            methyl::RootNode<NodeType> const & left,
+            methyl::RootNode<NodeType> const & right
+        ) {
+            return left->lowerStructureRankThan(right);
+        }
+    };
+
 }
 
 namespace methyl {
