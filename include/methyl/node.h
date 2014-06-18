@@ -103,6 +103,84 @@ namespace std {
 
 namespace methyl {
 
+// If we are interested in treating the methyl structures as comparable
+// values vs. by pointer identity, we need a special predicate to use
+// in something like an unordered_map... because == compares for identity
+// equality not structural equality.  There is also lowerStructureThan
+// but an ordered map based on methyl nodes would be slow to access.
+// You have to use the congruence_hash also because otherwise it would
+// hash miss for comparisons
+
+template <class T>
+struct congruence_hash<methyl::NodeRef<T>>
+{
+    size_t operator()(
+        methyl::NodeRef<T> const & nodeRef
+    ) const
+    {
+        // This algorithm is a placeholder, and needs serious improvement.
+        //
+        // https://github.com/hostilefork/methyl/issues/32
+
+        NodePrivate const & nodePrivate = nodeRef.getNode().getNodePrivate();
+
+        size_t result = 0;
+        int const N = 5;
+        int i = 0;
+
+        NodePrivate const * current = &nodePrivate;
+        while (current and (i < N)) {
+            // Qt will use qHash and not support std::hash until at least 2015
+            // https://bugreports.qt-project.org/browse/QTBUG-33428
+
+            if (current->hasText()) {
+                result ^= qHash(current->getText(HERE));
+            } else {
+                result ^= qHash(current->getTag(HERE).toUuid());
+            }
+            current = nodePrivate.maybeNextPreorderNodeUnderRoot(nodePrivate);
+        }
+
+        return result;
+    }
+};
+
+template <class T>
+struct congruent_to<methyl::NodeRef<T>>
+{
+    bool operator()(
+        methyl::NodeRef<T> const & left,
+        methyl::NodeRef<T> const & right
+    ) const
+    {
+        return left->sameStructureAs(right);
+    }
+};
+
+template <class T>
+struct congruence_hash<methyl::RootNode<T>>
+{
+    size_t operator()(
+        methyl::RootNode<T> const & ownedNode
+    ) const
+    {
+        return congruence_hash(ownedNode.getNodeRef());
+    }
+};
+
+template <class T>
+struct congruent_to<methyl::RootNode<T>>
+{
+    bool operator()(
+        methyl::RootNode<T> const & left,
+        methyl::RootNode<T> const & right
+    ) const
+    {
+        return left->sameStructureAs(right);
+    }
+};
+
+
 // Same for Engine.  Rename as MethylEngine or similar?
 class Engine;
 

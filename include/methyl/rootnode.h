@@ -67,7 +67,9 @@ friend class Engine;
 template <class> friend class RootNode;
 template <class> friend class NodeRef;
 
-template <class> friend struct std::hash;
+template <class> friend struct ::std::hash;
+template <class> friend struct ::methyl::congruent_to;
+template <class> friend struct ::methyl::congruence_hash;
 
 template <class T1, class T2> friend
 bool operator==(RootNode<T1> const & x, RootNode<T2> const & y);

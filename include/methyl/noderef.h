@@ -34,6 +34,10 @@ namespace methyl {
 // the node.
 //
 
+template <class> struct congruent_to;
+
+template <class> struct congruence_hash;
+
 
 ///
 /// NodeRef for const case, -> returns a const Node *
@@ -60,7 +64,9 @@ private:
         "Classes derived from Node must not add any new data members"
     );
 
-template <class> friend struct std::hash;
+template <class> friend struct ::std::hash;
+template <class> friend struct ::methyl::congruent_to;
+template <class> friend struct ::methyl::congruence_hash;
 
 protected:
     // if const, assignment would be ill formed.  But we don't want to
