@@ -24,14 +24,23 @@
 
 namespace methyl {
 
-// static declaration
-listed<Observer *>::manager Observer::_listManager;
-
 tracked<bool> globalDebugObserver (false, HERE);
 
 shared_ptr<Observer> Observer::create(codeplace const & cp) {
     return globalEngine->makeObserver(cp);
 }
+
+
+Observer::Observer (methyl::Engine & engine, codeplace const & cp) :
+    _map (std::unordered_map<NodePrivate const *, SeenFlags>()),
+    _engine (engine)
+{
+    Q_UNUSED(cp);
+
+    QWriteLocker lock (&_engine._observersLock);
+    _engine._observers.insert(this);
+}
+
 
 //
 // READ OPERATIONS
@@ -294,7 +303,7 @@ void Observer::setTag(
     const methyl::Tag& /*tag*/
 ) {
     globalEngine->forAllObservers([&](Observer & observer) {
-        if (not observer._map)
+        if (observer.isBlinded())
             return;
         if (observer.maybeObserved(thisNode, SawTag)) {
             observer.markBlind();
@@ -311,7 +320,7 @@ void Observer::insertChildAsFirstInLabel(
 ) {
     globalEngine->forAllObservers([&](Observer & observer) {
 
-        if (not observer._map)
+        if (observer.isBlinded())
             return;
 
         if (observer.maybeObserved(newChild,
@@ -360,7 +369,7 @@ void Observer::insertChildAsLastInLabel(
 
     globalEngine->forAllObservers([&](Observer & observer) {
 
-        if (not observer._map)
+        if (observer.isBlinded())
             return;
 
         if (observer.maybeObserved(newChild,
@@ -413,7 +422,7 @@ void Observer::insertChildBetween(
 
     globalEngine->forAllObservers([&](Observer & observer) {
 
-        if (not observer._map)
+        if (observer.isBlinded())
             return;
 
         if (observer.maybeObserved(newChild,
@@ -458,7 +467,7 @@ void Observer::detach(
 ) {
     globalEngine->forAllObservers([&](Observer & observer) {
 
-        if (not observer._map)
+        if (observer.isBlinded())
             return;
 
         if (observer.maybeObserved(thisNode,
@@ -542,7 +551,7 @@ void Observer::setText(
 
     globalEngine->forAllObservers([&](Observer & observer) {
 
-        if (not observer._map)
+        if (observer.isBlinded())
             return;
 
         if (observer.maybeObserved(thisNode, SawData)) {
@@ -554,6 +563,8 @@ void Observer::setText(
 
 Observer::~Observer()
 {
+    QWriteLocker lock (&_engine._observersLock);
+    _engine._observers.erase(this);
 }
 
 } // end namespace methyl

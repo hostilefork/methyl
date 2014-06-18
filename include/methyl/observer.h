@@ -63,7 +63,7 @@ class Engine;
 // what has happened since.  It is a separate question from the
 // validity of a node handle--that is managed by the Context.
 //
-class Observer : public QObject, listed<Observer*> {
+class Observer : public QObject {
     Q_OBJECT
 
     friend class Engine;
@@ -91,8 +91,9 @@ public:
     Q_DECLARE_FLAGS(SeenFlags, Saw)
 
 private:
-    static listed<Observer *>::manager _listManager;
+    QReadWriteLock mutable _mapLock;
     optional<std::unordered_map<NodePrivate const *, SeenFlags>> _map;
+    methyl::Engine & _engine;
 
 // For debugging purposes, I think?
     //listed<Observer*> _listThis;
@@ -100,25 +101,24 @@ private:
 // protected constructor, make_shared can't call it...
 // REVIEW: http://stackoverflow.com/a/8147326/211160
 private:
-    explicit Observer (codeplace const & cp) :
-        listed<Observer *> (this, _listManager, HERE),
-        _map (std::unordered_map<NodePrivate const *, SeenFlags>())
-    {
-        Q_UNUSED(cp);
-    }
-
+    explicit Observer (methyl::Engine & engine, codeplace const & cp);
 private:
-    static shared_ptr<Observer> create(codeplace const & cp);
+    static shared_ptr<Observer> create (codeplace const & cp);
 
 private:
     void markBlind() {
-        _map = nullopt;
+        {
+            QWriteLocker lock (&_mapLock);
+            _map = nullopt;
+        }
+
         emit blinded();
     }
 
 public:
     // Should this be protected and only visible to Node?
     bool isBlinded() {
+        QReadLocker lock (&_mapLock);
         return _map == nullopt;
     }
 
@@ -127,8 +127,9 @@ signals:
     void blinded();
 
 private:
-    SeenFlags getSeenFlags(NodePrivate const & node) const
-    {
+    SeenFlags getSeenFlags (NodePrivate const & node) const {
+        QReadLocker lock (&_mapLock);
+
         hopefully(_map != nullopt, HERE);
         auto it = (*_map).find(&node);
         if (it == (*_map).end()) {
@@ -136,15 +137,17 @@ private:
         }
         return it->second;
     }
-    void addSeenFlags(
+
+    void addSeenFlags (
         NodePrivate const & node,
         SeenFlags const & flags,
         codeplace const & cp
-    )
-    {
+    ) {
         Q_UNUSED(cp);
         if (isBlinded())
             return;
+
+        QWriteLocker lock (&_mapLock);
 
         auto it = (*_map).find(&node);
         if (it == (*_map).end()) {

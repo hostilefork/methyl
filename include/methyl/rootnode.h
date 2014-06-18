@@ -180,6 +180,7 @@ public:
     virtual ~RootNode () noexcept {
         if (static_cast<bool>(*this)) {
             unique_ptr<NodePrivate> nodeToFree (extractNodePrivate());
+            nodeToFree.release();
         }
     }
 

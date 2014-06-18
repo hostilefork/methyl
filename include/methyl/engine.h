@@ -40,26 +40,31 @@ namespace methyl {
 // time.
 class Engine
 {
-friend class methyl::NodePrivate;
-
 private:
     // Currently there is only one document in existence
     // Over the long term there will have to probably be support for more
     // Including scratch documents if they are memory mapped files
+private:
+    friend class ::methyl::NodePrivate;
     QDomDocument _document;
     QMap<QUuid, methyl::NodePrivate *> _mapIdToNode;
 
+private:
+    friend class ::methyl::Observer;
+    std::unordered_set<Observer *> _observers;
+    QReadWriteLock _observersLock;
+
 public:
-    void forAllObservers(std::function<void(methyl::Observer &)> fn) {
-        QList<tracked<Observer *>> observerList = 
-            methyl::Observer::_listManager.getList();
-        for (tracked<Observer *> & observer : observerList) {
-            fn(*observer.get());
+    // You cannot destroy observers during the enumeration...
+    void forAllObservers (std::function<void(methyl::Observer &)> fn) {
+        QReadLocker lock (&_observersLock);
+        for (Observer * observer : _observers) {
+            fn(*observer);
         }
     }
 
-    shared_ptr<Observer> makeObserver(codeplace const & cp) {
-        return shared_ptr<Observer>(new Observer (cp));
+    shared_ptr<Observer> makeObserver (codeplace const & cp) {
+        return shared_ptr<Observer>(new Observer (*this, cp));
     }
 
     NodeRef<Node const> monitoredNode(
