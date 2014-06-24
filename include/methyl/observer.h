@@ -159,6 +159,7 @@ private:
         }
     }
 
+
 public:
     // no effect, also we use this so it would create weird recursion...
     // consider also: if nodes can be moved between documents, might that
@@ -172,28 +173,28 @@ public:
     );
 #endif
 
-    void hasParent(
+    void hasParent (
         bool const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getParent(
+    void getParent (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getLabelInParent(
+    void getLabelInParent (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void hasParentEqualTo(
+    void hasParentEqualTo (
         bool const & result,
         methyl::NodePrivate const & thisNode,
         methyl::NodePrivate const & parent
     );
 
-    void hasLabelInParentEqualTo(
+    void hasLabelInParentEqualTo (
         bool const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
@@ -201,23 +202,23 @@ public:
 
     // TAG SPECIFICATION
 
-    void hasTag(
+    void hasTag (
         bool const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void hasTagEqualTo(
+    void hasTagEqualTo (
         bool const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Tag const & tag
     );
 
-    void getTag(
+    void getTag (
         methyl::Tag const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void tryGetTagNode(
+    void tryGetTagNode (
         const methyl::NodePrivate * result,
         methyl::NodePrivate const & thisNode
     );
@@ -225,46 +226,46 @@ public:
     // LABEL ENUMERATION
     // no implicit ordering, invariant order from ID
 
-    void hasAnyLabels(
+    void hasAnyLabels (
         bool const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void hasLabel(
+    void hasLabel (
         bool const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void getFirstLabel(
+    void getFirstLabel (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getLastLabel(
+    void getLastLabel (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void hasLabelAfter(
+    void hasLabelAfter (
         bool const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void getLabelAfter(
+    void getLabelAfter (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void hasLabelBefore(
+    void hasLabelBefore (
         bool const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void getLabelBefore(
+    void getLabelBefore (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
@@ -272,64 +273,65 @@ public:
 
     // NODE IN LABEL ENUMERATION
 
-    void getFirstChildInLabel(
+    void getFirstChildInLabel (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void getLastChildInLabel(
+    void getLastChildInLabel (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void hasNextSiblingInLabel(
+    void hasNextSiblingInLabel (
         bool const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getNextSiblingInLabel(
+    void getNextSiblingInLabel (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void hasPreviousSiblingInLabel(
+    void hasPreviousSiblingInLabel (
         bool const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getPreviousSiblingInLabel(
+    void getPreviousSiblingInLabel (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getText(
+    void getText (
         const QString & result,
         methyl::NodePrivate const & thisNode
     );
 
+
 public:
-    static void setTag(
+    static void setTag (
         methyl::NodePrivate const & thisNode,
         methyl::Tag const & tag
     );
 
-    static void insertChildAsFirstInLabel(
+    static void insertChildAsFirstInLabel (
         methyl::NodePrivate const & thisNode,
         methyl::NodePrivate const & newChild,
         methyl::Label const & label,
         methyl::NodePrivate const * nextChildInLabel
     );
 
-    static void insertChildAsLastInLabel(
+    static void insertChildAsLastInLabel (
         methyl::NodePrivate const & thisNode,
         methyl::NodePrivate const & newChild,
         methyl::Label const & label,
         methyl::NodePrivate const * previousChildInLabel
     );
 
-    static void insertChildBetween(
+    static void insertChildBetween (
         methyl::NodePrivate const & thisNode,
         methyl::NodePrivate const & newChild,
         methyl::NodePrivate const & previousChild,
@@ -350,7 +352,7 @@ public:
     );
 #endif
 
-    static void detach(
+    static void detach (
         methyl::NodePrivate const & thisNode,
         methyl::NodePrivate const & parent,
         methyl::NodePrivate const * previousChild,
@@ -365,30 +367,31 @@ public:
     );
 #endif
 
+
     // data modifications
 public:
 #ifdef STRING_MICRO_OBSERVATIONS
     // for now, inserts and deletes affect any observation made of a text node
     // in theory, a smaller modification could cause less invalidation if there
     // were corresponding smaller observations.
-    void insertCharBeforeIndex(
+    void insertCharBeforeIndex (
         methyl::NodePrivate const & thisNode,
         IndexOf(QChar) index,
         const QChar& ch
     );
 
-    void insertCharAfterIndex(
+    void insertCharAfterIndex (
         methyl::NodePrivate const & thisNode,
         IndexOf(QChar) index,
         const QChar& ch
     );
 
-    void deleteCharAtIndex(
+    void deleteCharAtIndex (
         methyl::NodePrivate const & thisNode,
         IndexOf(QChar) index
     )
 #endif
-    static void setText(
+    static void setText (
         methyl::NodePrivate const & thisNode,
         QString const & data
     );
@@ -396,7 +399,7 @@ public:
 public:
     // NOTE: This gets called several times in a row
     // better to capture the observer once... or cache... or something
-    bool maybeObserved(
+    bool maybeObserved (
         methyl::NodePrivate const & node,
         SeenFlags const & flags
     ) {

@@ -49,9 +49,9 @@ Observer::Observer (methyl::Engine & engine, codeplace const & cp) :
 
 // node in label enumeration
 void Observer::getFirstChildInLabel(
-    methyl::NodePrivate const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::Label const & label
+    NodePrivate const & result,
+    NodePrivate const & thisNode,
+    Label const & label
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
@@ -63,9 +63,9 @@ void Observer::getFirstChildInLabel(
 }
 
 void Observer::getLastChildInLabel(
-    methyl::NodePrivate const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::Label const & label
+    NodePrivate const & result,
+    NodePrivate const & thisNode,
+    Label const & label
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
@@ -78,23 +78,23 @@ void Observer::getLastChildInLabel(
 
 void Observer::hasParent(
     bool const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawHasParent, HERE);
 }
 
 void Observer::getParent(
-    methyl::NodePrivate const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & result,
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawParent, HERE);
 }
 
 void Observer::getLabelInParent(
-    methyl::Label const & result,
-    methyl::NodePrivate const & thisNode
+    Label const & result,
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawLabelInParent, HERE);
@@ -102,8 +102,8 @@ void Observer::getLabelInParent(
 
 void Observer::hasParentEqualTo(
     bool const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::NodePrivate const & parent
+    NodePrivate const & thisNode,
+    NodePrivate const & parent
 ) {
     // TODO: implement this
     Q_UNUSED(result);
@@ -114,8 +114,8 @@ void Observer::hasParentEqualTo(
 
 void Observer::hasLabelInParentEqualTo(
     bool const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::Label const & label
+    NodePrivate const & thisNode,
+    Label const & label
 ) {
     // TODO: implement this
     Q_UNUSED(result);
@@ -128,7 +128,7 @@ void Observer::hasLabelInParentEqualTo(
 
 void Observer::hasTag(
     bool const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawHasTag, HERE);
@@ -136,7 +136,7 @@ void Observer::hasTag(
 
 void Observer::hasTagEqualTo(
     bool const & result,
-    methyl::NodePrivate const & thisNode,
+    NodePrivate const & thisNode,
     methyl::Tag const & tag
 ) {
     // TODO: implement this
@@ -148,15 +148,15 @@ void Observer::hasTagEqualTo(
 
 void Observer::getTag(
     methyl::Tag const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result)
     addSeenFlags(thisNode, SawTag, HERE);
 }
 
 void Observer::tryGetTagNode(
-    const methyl::NodePrivate * result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const * result,
+    NodePrivate const & thisNode
 ) {
     // TODO: implement this
     Q_UNUSED(result);
@@ -169,7 +169,7 @@ void Observer::tryGetTagNode(
 
 void Observer::hasAnyLabels(
     bool const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawHasLabel, HERE);
@@ -178,8 +178,8 @@ void Observer::hasAnyLabels(
 
 void Observer::hasLabel(
     bool const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::Label const & label
+    NodePrivate const & thisNode,
+    Label const & label
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
@@ -188,8 +188,8 @@ void Observer::hasLabel(
 }
 
 void Observer::getFirstLabel(
-    methyl::Label const & result,
-    methyl::NodePrivate const & thisNode
+    Label const & result,
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawHasLabel, HERE);
@@ -197,8 +197,8 @@ void Observer::getFirstLabel(
 }
 
 void Observer::getLastLabel(
-    methyl::Label const & result,
-    methyl::NodePrivate const & thisNode
+    Label const & result,
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawHasLabel, HERE);
@@ -207,8 +207,8 @@ void Observer::getLastLabel(
 
 void Observer::hasLabelAfter(
     bool const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::Label const & label
+    NodePrivate const & thisNode,
+    Label const & label
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
@@ -217,9 +217,9 @@ void Observer::hasLabelAfter(
 }
 
 void Observer::getLabelAfter(
-    methyl::Label const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::Label const & label
+    Label const & result,
+    NodePrivate const & thisNode,
+    Label const & label
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
@@ -229,8 +229,8 @@ void Observer::getLabelAfter(
 
 void Observer::hasLabelBefore(
     bool const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::Label const & label
+    NodePrivate const & thisNode,
+    Label const & label
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
@@ -239,9 +239,9 @@ void Observer::hasLabelBefore(
 }
 
 void Observer::getLabelBefore(
-    methyl::Label const & result,
-    methyl::NodePrivate const & thisNode,
-    methyl::Label const & label
+    Label const & result,
+    NodePrivate const & thisNode,
+    Label const & label
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
@@ -253,15 +253,15 @@ void Observer::getLabelBefore(
 
 void Observer::hasNextSiblingInLabel(
     bool const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawHasNextSiblingInLabel, HERE);
 }
 
 void Observer::getNextSiblingInLabel(
-    methyl::NodePrivate const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & result,
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawNextSiblingInLabel, HERE);
@@ -269,15 +269,15 @@ void Observer::getNextSiblingInLabel(
 
 void Observer::hasPreviousSiblingInLabel(
     bool const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawHasPreviousSiblingInLabel, HERE);
 }
 
 void Observer::getPreviousSiblingInLabel(
-    methyl::NodePrivate const & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & result,
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawPreviousSiblingInLabel, HERE);
@@ -285,7 +285,7 @@ void Observer::getPreviousSiblingInLabel(
 
 void Observer::getText(
     const QString & result,
-    methyl::NodePrivate const & thisNode
+    NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
     addSeenFlags(thisNode, SawData, HERE);
@@ -299,9 +299,11 @@ void Observer::getText(
 //
 
 void Observer::setTag(
-    methyl::NodePrivate const & thisNode,
-    const methyl::Tag& /*tag*/
+    NodePrivate const & thisNode,
+    Tag const & tag
 ) {
+    Q_UNUSED(tag);
+
     globalEngine->forAllObservers([&](Observer & observer) {
         if (observer.isBlinded())
             return;
@@ -312,12 +314,15 @@ void Observer::setTag(
     });
 }
 
+
 void Observer::insertChildAsFirstInLabel(
-    methyl::NodePrivate const & thisNode,
-    methyl::NodePrivate const & newChild,
-    methyl::Label const & /*label*/,
-    const methyl::NodePrivate * nextChildInLabel
+    NodePrivate const & thisNode,
+    NodePrivate const & newChild,
+    Label const & label,
+    NodePrivate const * nextChildInLabel
 ) {
+    Q_UNUSED(label);
+
     globalEngine->forAllObservers([&](Observer & observer) {
 
         if (observer.isBlinded())
@@ -360,10 +365,10 @@ void Observer::insertChildAsFirstInLabel(
 }
 
 void Observer::insertChildAsLastInLabel(
-    methyl::NodePrivate const & thisNode,
-    methyl::NodePrivate const & newChild,
-    methyl::Label const & label,
-    const methyl::NodePrivate* previousChildInLabel
+    NodePrivate const & thisNode,
+    NodePrivate const & newChild,
+    Label const & label,
+    const NodePrivate* previousChildInLabel
 ) {
     Q_UNUSED(label);
 
@@ -410,10 +415,10 @@ void Observer::insertChildAsLastInLabel(
 }
 
 void Observer::insertChildBetween(
-    methyl::NodePrivate const & thisNode,
-    methyl::NodePrivate const & newChild,
-    methyl::NodePrivate const & previousChild,
-    methyl::NodePrivate const & nextChild
+    NodePrivate const & thisNode,
+    NodePrivate const & newChild,
+    NodePrivate const & previousChild,
+    NodePrivate const & nextChild
 ) {
     Q_UNUSED(thisNode);
 
@@ -459,11 +464,11 @@ void Observer::insertChildBetween(
 }
 
 void Observer::detach(
-    methyl::NodePrivate const & thisNode,
-    methyl::NodePrivate const & parent,
-    methyl::NodePrivate const * previousChild,
-    methyl::NodePrivate const * nextChild,
-    methyl::NodePrivate const * replacement
+    NodePrivate const & thisNode,
+    NodePrivate const & parent,
+    NodePrivate const * previousChild,
+    NodePrivate const * nextChild,
+    NodePrivate const * replacement
 ) {
     globalEngine->forAllObservers([&](Observer & observer) {
 
@@ -544,7 +549,7 @@ void Observer::detach(
 
 // data modifications
 void Observer::setText(
-    methyl::NodePrivate const & thisNode,
+    NodePrivate const & thisNode,
     QString const & str
 ) {
     Q_UNUSED(str);
