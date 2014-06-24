@@ -177,7 +177,7 @@ struct congruent_to<methyl::RootNode<T>>
         methyl::RootNode<T> const & right
     ) const
     {
-        return left->sameStructureAs(right);
+        return left->sameStructureAs(right.get());
     }
 };
 

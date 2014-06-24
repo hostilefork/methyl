@@ -133,21 +133,6 @@ public:
     }
 
     template <class U>
-    NodeRef (
-        RootNode<U> const & other,
-        typename std::enable_if<
-            std::is_base_of<T, U>::value,
-            void *
-        >::type = nullptr
-    ) :
-        NodeRef<T const> (
-            other.getNodeRef()->getNodePrivate(),
-            other.getNode().getContext()
-        )
-    {
-    }
-
-    template <class U>
     explicit NodeRef (
         NodeRef<U const> const & other,
         typename std::enable_if<
@@ -162,19 +147,6 @@ public:
     {
     }
 
-    template <class U>
-    explicit NodeRef (
-        RootNode<U> const & other,
-        typename std::enable_if<
-            not std::is_base_of<T, U>::value,
-            void *
-        >::type = nullptr
-    ) :
-        NodeRef<T const> (
-            other.getNodeRef()->getNodePrivate(),
-            other.getNode().getContext()
-        )
-    {
     }
 
     T const * operator->() const

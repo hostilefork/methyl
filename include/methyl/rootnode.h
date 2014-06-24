@@ -89,17 +89,20 @@ private:
         getNode().setInternalProperties(nullptr, context);
         return unique_ptr<NodePrivate> (&node);
     }
+
 public:
     explicit operator bool () const
         { return getNode().maybeGetNodePrivate() != nullptr; }
-    NodeRef<T const> getNodeRef() const {
+
+    NodeRef<T const> get() const {
         Q_ASSERT(static_cast<bool>(*this));
         return NodeRef<T const>(
             getNode().getNodePrivate(),
             getNode().getContext()
         );
     }
-    NodeRef<T> getNodeRef() {
+
+    NodeRef<T> get() {
         Q_ASSERT(static_cast<bool>(*this));
         return NodeRef<T>(
             getNode().getNodePrivate(),
@@ -174,8 +177,12 @@ protected:
     }
 
 public:
+    T const * operator-> () const
+        { return &getNode(); }
+
     T * operator-> ()
         { return &getNode(); }
+
     // http://stackoverflow.com/a/15418208/211160
     virtual ~RootNode () noexcept {
         if (static_cast<bool>(*this)) {
@@ -221,7 +228,7 @@ class ROOTNODE_no_moc_warning : public QObject { Q_OBJECT };
 // Consider other operators
 template <class T1, class T2>
 bool operator==(RootNode<T1> const & x, RootNode<T2> const & y) {
-    return x.getNodeRef() == y.getNodeRef();
+    return x.get() == y.get();
 }
 
 }
