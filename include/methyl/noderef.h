@@ -147,12 +147,12 @@ public:
     {
     }
 
+    T const * operator->() const {
+        return &getNode();
     }
 
-    T const * operator->() const
-        { return &getNode(); }
-    virtual ~NodeRef ()
-        { }
+    virtual ~NodeRef () {
+    }
 
 public:
     template <class U>
