@@ -264,7 +264,9 @@ friend class Engine;
 template <class> friend class RootNode;
 template <class> friend class NodeRef;
 
-template <class> friend struct std::hash;
+template <class> friend struct ::std::hash;
+template <class> friend struct ::methyl::congruent_to;
+template <class> friend struct ::methyl::congruence_hash;
 
 private:
     T & getNode() const {
@@ -420,8 +422,7 @@ public:
         NodeRef<U const> const & source,
         typename std::enable_if<
             std::is_base_of<T, U>::value
-            or std::is_base_of<U, T>::value
-            or std::is_same<T, U>::value,
+            or std::is_base_of<U, T>::value,
             void *
         >::type = nullptr
     ) {
@@ -438,8 +439,7 @@ public:
         optional<NodeRef<U const>> const & source,
         typename std::enable_if<
             std::is_base_of<T, U>::value
-            or std::is_base_of<U, T>::value
-            or std::is_same<T, U>::value,
+            or std::is_base_of<U, T>::value,
             void *
         >::type = nullptr
     ) {
@@ -460,8 +460,7 @@ public:
         NodeRef<U> const & source,
         typename std::enable_if<
             std::is_base_of<T, U>::value
-            or std::is_base_of<U, T>::value
-            or std::is_same<T, U>::value,
+            or std::is_base_of<U, T>::value,
             void *
         >::type = nullptr
     ) {
@@ -478,8 +477,7 @@ public:
         optional<NodeRef<U>> const & source,
         typename std::enable_if<
             std::is_base_of<T, U>::value
-            or std::is_base_of<U, T>::value
-            or std::is_same<T, U>::value,
+            or std::is_base_of<U, T>::value,
             void *
         >::type = nullptr
     ) {
