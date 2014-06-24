@@ -66,8 +66,9 @@ namespace std {
         bool operator()(
             methyl::NodeRef<T> const & left,
             methyl::NodeRef<T> const & right
-        ) {
-            return left->lowerStructureRankThan(right);
+        ) const
+        {
+            return left.getId() < right.getId();
         }
     };
 
