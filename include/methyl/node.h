@@ -94,8 +94,9 @@ namespace std {
         bool operator()(
             methyl::RootNode<T> const & left,
             methyl::RootNode<T> const & right
-        ) {
-            return left->lowerStructureRankThan(right);
+        ) const
+        {
+            return left.getId() < right.getId();
         }
     };
 
