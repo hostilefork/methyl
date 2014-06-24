@@ -112,11 +112,11 @@ namespace methyl {
 // in something like an unordered_map... because == compares for identity
 // equality not structural equality.  There is also lowerStructureThan
 // but an ordered map based on methyl nodes would be slow to access.
-// You have to use the congruence_hash also because otherwise it would
+// You have to use the structure_hash also because otherwise it would
 // hash miss for comparisons
 
 template <class T>
-struct congruence_hash<methyl::NodeRef<T>>
+struct structure_hash<methyl::NodeRef<T>>
 {
     size_t operator()(
         methyl::NodeRef<T> const & nodeRef
@@ -129,11 +129,11 @@ struct congruence_hash<methyl::NodeRef<T>>
         NodePrivate const & nodePrivate = nodeRef.getNode().getNodePrivate();
 
         size_t result = 0;
-        int const N = 5;
+        int const N = -1; // For now, let's do full equality...
         int i = 0;
 
         NodePrivate const * current = &nodePrivate;
-        while (current and (i < N)) {
+        while (current and (i++ < N)) {
             // Qt will use qHash and not support std::hash until at least 2015
             // https://bugreports.qt-project.org/browse/QTBUG-33428
 
@@ -143,8 +143,6 @@ struct congruence_hash<methyl::NodeRef<T>>
                 result ^= qHash(current->getTag(HERE).toUuid());
             }
             current = current->maybeNextPreorderNodeUnderRoot(nodePrivate);
-            // For the moment, let's do full equality
-            /* i++; */
         }
 
         return result;
@@ -152,7 +150,7 @@ struct congruence_hash<methyl::NodeRef<T>>
 };
 
 template <class T>
-struct congruent_to<methyl::NodeRef<T>>
+struct structure_equal_to<methyl::NodeRef<T>>
 {
     bool operator()(
         methyl::NodeRef<T> const & left,
@@ -164,19 +162,19 @@ struct congruent_to<methyl::NodeRef<T>>
 };
 
 template <class T>
-struct congruence_hash<methyl::RootNode<T>>
+struct structure_hash<methyl::RootNode<T>>
 {
     size_t operator()(
         methyl::RootNode<T> const & ownedNode
     ) const
     {
-        congruence_hash<methyl::NodeRef<T>> hasher;
+        structure_hash<methyl::NodeRef<T>> hasher;
         return hasher(ownedNode.get());
     }
 };
 
 template <class T>
-struct congruent_to<methyl::RootNode<T>>
+struct structure_equal_to<methyl::RootNode<T>>
 {
     bool operator()(
         methyl::RootNode<T> const & left,
@@ -201,8 +199,8 @@ class Engine;
 
 class Node {
     template <class> friend struct ::std::hash;
-    template <class> friend struct ::methyl::congruence_hash;
-    template <class> friend struct ::methyl::congruent_to;
+    template <class> friend struct ::methyl::structure_hash;
+    template <class> friend struct ::methyl::structure_equal_to;
 
     friend class Engine;
 

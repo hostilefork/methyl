@@ -34,9 +34,9 @@ namespace methyl {
 // the node.
 //
 
-template <class> struct congruent_to;
+template <class> struct structure_equal_to;
 
-template <class> struct congruence_hash;
+template <class> struct structure_hash;
 
 
 ///
@@ -65,8 +65,8 @@ private:
     );
 
 template <class> friend struct ::std::hash;
-template <class> friend struct ::methyl::congruent_to;
-template <class> friend struct ::methyl::congruence_hash;
+template <class> friend struct ::methyl::structure_equal_to;
+template <class> friend struct ::methyl::structure_hash;
 
 protected:
     // if const, assignment would be ill formed.  But we don't want to
@@ -237,8 +237,8 @@ template <class> friend class RootNode;
 template <class> friend class NodeRef;
 
 template <class> friend struct ::std::hash;
-template <class> friend struct ::methyl::congruent_to;
-template <class> friend struct ::methyl::congruence_hash;
+template <class> friend struct ::methyl::structure_equal_to;
+template <class> friend struct ::methyl::structure_hash;
 
 private:
     T & getNode() const {
