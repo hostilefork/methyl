@@ -139,7 +139,9 @@ struct congruence_hash<methyl::NodeRef<T>>
             } else {
                 result ^= qHash(current->getTag(HERE).toUuid());
             }
-            current = nodePrivate.maybeNextPreorderNodeUnderRoot(nodePrivate);
+            current = current->maybeNextPreorderNodeUnderRoot(nodePrivate);
+            // For the moment, let's do full equality
+            /* i++; */
         }
 
         return result;
@@ -165,7 +167,8 @@ struct congruence_hash<methyl::RootNode<T>>
         methyl::RootNode<T> const & ownedNode
     ) const
     {
-        return congruence_hash(ownedNode.getNodeRef());
+        congruence_hash<methyl::NodeRef<T>> hasher;
+        return hasher(ownedNode.get());
     }
 };
 
@@ -194,7 +197,10 @@ class Engine;
 // be able to tell that your class is a subclass of Node
 
 class Node {
-    template <class> friend struct std::hash;
+    template <class> friend struct ::std::hash;
+    template <class> friend struct ::methyl::congruence_hash;
+    template <class> friend struct ::methyl::congruent_to;
+
     friend class Engine;
 
 private:
