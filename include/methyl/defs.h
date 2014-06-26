@@ -122,55 +122,106 @@ inline void notImplemented(QString const & routine, codeplace const & cp) {
 
 namespace methyl {
 
+//
 // Identity
-// I should research the flexibile notion of authorities and varied Identitys
+//
+// I should research the flexibile notion of authorities and varied Identity
 // that Freebase is using.  Yet even they give every object a "machine ID"
 // it may just optionally have other identities.
-class Identity : protected QUuid {
+//
+// Because we're leveraging the string-based Qt DOM for now, it's more
+// efficient to store it as a string.
+//
+
+class Identity : protected QString {
 public:
-    Identity (QUuid const & uuid) : QUuid (uuid) {}
-    explicit Identity (QString const & str) :
-        QUuid (UuidFromBase64String(str.toLatin1()))
+    Identity (QUuid const & uuid) :
+        QString (Base64StringFromUuid(uuid))
     {
     }
-    QString toString() const {
-        return Base64StringFromUuid(*this);
+
+    explicit Identity (QString const & base64) :
+        QString (base64)
+    {
     }
+
+    QString toBase64() const {
+        return *this;
+    }
+
     QUuid toUuid() const {
-        return (*this);
+        return UuidFromBase64String(static_cast<QString>(*this).toLatin1());
     }
-    int compare(Identity const & other) const {
-        return this->toString().compare(other.toString());
+
+    int compare (Identity const & other) const {
+        return QString::compare(other);
     }
+
     bool operator== (Identity const & rhs) const {
-        return compare(rhs) == 0;
+        return static_cast<QString const &>(*this)
+            == static_cast<QString const &>(rhs);
     }
+
     bool operator!= (Identity const & rhs) const {
-        return compare(rhs) != 0;
+        return static_cast<QString const &>(*this)
+            != static_cast<QString const &>(rhs);
     }
-
 };
 
 
-// Should I go with QString to make this easier for the moment?
-class Label : protected QUuid {
-    friend class NodePrivate;
+//
+// Label
+//
+// Previously a Label was just an identity.  I think having a separate type
+// is helpful for documentation, but it also may be the case that different
+// things should be permitted in labels.
+//
+// So for now they are a different type, in order to prevent using a node
+// Identity as a label.  Same implementation; also using a QString under
+// the hood to be fastest in use with the underlying Qt DOM stub code.
+//
+
+class Label : protected QString {
 public:
-    Label () : QUuid() {}
-    Label (QUuid const & uuid) : QUuid (uuid) {}
-    bool operator== (Label const & rhs) const {
-        return (
-            static_cast<QUuid const &>(*this)
-            == static_cast<QUuid const &>(rhs)
-        );
+    Label (QUuid const & uuid) :
+        QString (Base64StringFromUuid(uuid))
+    {
     }
+
+    explicit Label (QString const & base64) :
+        QString (base64)
+    {
+    }
+
+    QString toBase64() const {
+        return *this;
+    }
+
+    QUuid toUuid() const {
+        return UuidFromBase64String((*this).toLatin1());
+    }
+
+    int compare (Label const & other) const {
+        return QString::compare(other);
+    }
+
+    bool operator== (Label const & rhs) const {
+        return static_cast<QString const &>(*this)
+            == static_cast<QString const &>(rhs);
+    }
+
     bool operator!= (Label const & rhs) const {
-        return (
-            static_cast<QUuid const &>(*this)
-            != static_cast<QUuid const &>(rhs)
-        );
+        return static_cast<QString const &>(*this)
+            != static_cast<QString const &>(rhs);
     }
 };
+
+
+//
+// The need to be able to point one node at another makes the requirements
+// for a Tag a superset of identity.  It may be the case that other kinds
+// of non-node-indicating tags are legal as well (URI?)
+//
 
 typedef Identity Tag; // so it goes....
 

@@ -33,14 +33,15 @@ tracked<bool> globalDebugNodeLabeling (false, HERE);
 //
 
 NodePrivate const * NodePrivate::maybeGetFromId(methyl::Identity const & id) {
-    return globalEngine->_mapIdToNode.value(id.toUuid(), nullptr);
+    QReadLocker lock (&globalEngine->_mapLock);
+
+    return globalEngine->_mapIdBase64ToNode.value(id.toBase64(), nullptr);
 }
 
-NodePrivate & NodePrivate::NodeFromDomElement(const QDomElement& element) {
-    QString const idString (element.attribute("id"));
-    auto result = NodePrivate::maybeGetFromId(
-        UuidFromBase64String(idString.toLatin1())
-    );
+
+NodePrivate & NodePrivate::NodeFromDomElement(const QDomElement & element) {
+    QString idBase64 = element.attribute("id");
+    auto result = NodePrivate::maybeGetFromId(Identity (idBase64));
     hopefully(result, HERE);
 
     // we are the implementation, we can do this...
@@ -48,7 +49,7 @@ NodePrivate & NodePrivate::NodeFromDomElement(const QDomElement& element) {
 }
 
 Label NodePrivate::LabelFromDomElement(const QDomElement& element) {
-    return UuidFromBase64String(element.tagName().toLatin1());
+    return Label (element.tagName());
 }
 
 unique_ptr<NodePrivate> NodePrivate::create(Tag const & tag) {
@@ -100,69 +101,57 @@ unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree() const {
     return clone;
 }
 
-NodePrivate::~NodePrivate ()
-{
-    if (hasAnyLabels()) {
-        Label label = getFirstLabel(HERE);
-        bool moreLabels = true;
-        while (moreLabels) {
-            Label lastLabel = label;
-            moreLabels = hasLabelAfter(label);
-            if (moreLabels)
-                label = getLabelAfter(label, HERE);
-            while (hasLabel(lastLabel)) {
-                Label dummyLabel;
-                NodePrivate const * nodeParent;
-                NodePrivate const * previousChild;
-                NodePrivate const * nextChild;
-                getFirstChildInLabel(lastLabel, HERE).detach(
-                    &dummyLabel,
-                    &nodeParent,
-                    &previousChild,
-                    &nextChild
-                );
-            }
-        }
-    }
 
-    methyl::Identity const id = getId();
-    // do not call any node member routines after this point...
-    hopefully(globalEngine->_mapIdToNode.remove(id.toUuid()) == 1, HERE);
-}
 
-NodePrivate::NodePrivate (methyl::Identity const & id, QString const & str)
+//
+// Constructor and Destructor
+//
+// NodePrivate represents something that would ideally be some kind of
+// pointer or handle into a database or memory-mapped file.  The rest of
+// Methyl is defined in terms of expecting the basic services of the
+// NodePrivate API to be available.  The simplest implementation on hand
+// to use in a Qt project was the Qt DOM.
+//
+
+NodePrivate::NodePrivate (methyl::Identity const & id, QString const & data)
 {
     _element = globalEngine->_document.createElement("text");
 
     QString idBase64 = Base64StringFromUuid(id.toUuid());
     _element.setAttribute("id", idBase64);
 
-    // way to atomic insert and check for non-prior existence?
-    hopefully(not globalEngine->_mapIdToNode.contains(id.toUuid()), HERE);
-    globalEngine->_mapIdToNode.insert(id.toUuid(), this); // track it
+    {
+        QWriteLocker lock (&globalEngine->_mapLock);
 
-    _element.setAttribute("text", str);
+        // way to atomic insert and check for non-prior existence?
+        hopefully(not globalEngine->_mapIdBase64ToNode.contains(idBase64), HERE);
+        globalEngine->_mapIdBase64ToNode.insert(idBase64, this);
+    }
+
+    _element.setAttribute("text", data);
 
     chronicle(globalDebugNodeCreate, 
         "NodePrivate::Node() with methyl::Identity " + idBase64
-        + " and data = " + str,
+        + " and data = " + data,
         HERE
     );
 }
 
 NodePrivate::NodePrivate (methyl::Identity const & id, Tag const & tag)
 {
-    QString tagBase64 = Base64StringFromUuid(tag.toUuid());
+    QString tagBase64 = tag.toBase64();
     _element = globalEngine->_document.createElement(tagBase64);
 
-    QString idBase64 = Base64StringFromUuid(id.toUuid());
+    QString idBase64 = id.toBase64();
     _element.setAttribute("id", idBase64);
 
-    hopefully(
-        globalEngine->_mapIdToNode.find(id.toUuid())
-        == globalEngine->_mapIdToNode.end(), HERE
-    );
-    globalEngine->_mapIdToNode.insert(id.toUuid(), this); // track it
+    {
+        QWriteLocker lock (&globalEngine->_mapLock);
+
+        // way to atomic insert and check for non-prior existence?
+        hopefully(not globalEngine->_mapIdBase64ToNode.contains(idBase64), HERE);
+        globalEngine->_mapIdBase64ToNode.insert(idBase64, this);
+    }
 
     chronicle(globalDebugNodeCreate, 
         "NodePrivate::Node() with methyl::Identity " + idBase64
@@ -172,7 +161,35 @@ NodePrivate::NodePrivate (methyl::Identity const & id, Tag const & tag)
 }
 
 
-// read-only accessors
+NodePrivate::~NodePrivate ()
+{
+    QString idBase64 = getId().toBase64();
+
+    if (hasAnyLabels()) {
+        Label label = getFirstLabel(HERE);
+        bool moreLabels = true;
+        while (moreLabels) {
+            Label lastLabel = label;
+            moreLabels = hasLabelAfter(label);
+            if (moreLabels)
+                label = getLabelAfter(label, HERE);
+            while (hasLabel(lastLabel)) {
+                auto result = getFirstChildInLabel(lastLabel, HERE).detach();
+                unique_ptr<NodePrivate> & ownedNode = std::get<0>(result);
+                ownedNode.release();
+            }
+        }
+    }
+
+    QWriteLocker lock (&globalEngine->_mapLock);
+    hopefully(globalEngine->_mapIdBase64ToNode.remove(idBase64) == 1, HERE);
+}
+
+
+
+//
+// Document and Identity
+//
 
 NodePrivate const & NodePrivate::getDoc() const {
     return NodeFromDomElement(globalEngine->_document.documentElement());
@@ -185,7 +202,7 @@ NodePrivate & NodePrivate::getDoc() {
 
 
 methyl::Identity NodePrivate::getId() const {
-    return UuidFromBase64String(_element.attribute("id").toLatin1());
+    return Identity (_element.attribute("id"));
 }
 
 
@@ -224,12 +241,10 @@ bool NodePrivate::hasTag() const
     return _element.tagName() != "text";
 }
 
-Tag NodePrivate::getTag(codeplace const & cp) const
-{
-    hopefully(_element.tagName() != "text", cp);
-    Tag result = UuidFromBase64String(_element.tagName().toLatin1());
-    return result;
 
+Tag NodePrivate::getTag (codeplace const & cp) const {
+    hopefully(_element.tagName() != "text", cp);
+    return Tag (_element.tagName());
 }
 QString NodePrivate::getText(codeplace const & cp) const {
     hopefully(_element.tagName() == "text", cp);
@@ -243,7 +258,7 @@ tuple<bool, optional<QDomElement>> NodePrivate::maybeGetLabelElementCore(
     Label const & label,
     bool createIfNecessary
 ) const {
-    QString labelBase64 = Base64StringFromUuid(label);
+    QString labelBase64 = label.toBase64();
     auto & mutableElement = *const_cast<QDomElement *>(&_element);
 
     QDomNodeList children = _element.childNodes();
@@ -314,18 +329,16 @@ bool NodePrivate::hasLabel(Label const & label) const
 
 Label NodePrivate::getFirstLabel(codeplace const & cp) const
 {
+Label NodePrivate::getFirstLabel (codeplace const & cp) const {
     hopefully(hasAnyLabels(), cp);
-    return UuidFromBase64String(
-        _element.firstChildElement().tagName().toLatin1()
-    );
+    return Label (_element.firstChildElement().tagName());
 }
 
 Label NodePrivate::getLastLabel(codeplace const & cp) const
 {
+Label NodePrivate::getLastLabel (codeplace const & cp) const {
     hopefully(hasAnyLabels(), cp);
-    return UuidFromBase64String(
-        _element.lastChildElement().tagName().toLatin1()
-    );
+    return Label (_element.lastChildElement().tagName());
 }
 
 bool NodePrivate::hasLabelAfter(Label const & label) const
@@ -334,12 +347,14 @@ bool NodePrivate::hasLabelAfter(Label const & label) const
 }
 
 Label NodePrivate::getLabelAfter(Label const & label, codeplace const & cp) const
+Label NodePrivate::getLabelAfter (
+    Label const & label,
+    codeplace const & cp
+) const
 {
     QDomElement labelElement = getLabelElement(label);
     hopefully(not labelElement.nextSiblingElement().isNull(), cp);
-    return UuidFromBase64String(
-        labelElement.nextSiblingElement().tagName().toLatin1()
-    );
+    return Label (labelElement.nextSiblingElement().tagName());
 }
 
 bool NodePrivate::hasLabelBefore(Label const & label) const
@@ -347,13 +362,15 @@ bool NodePrivate::hasLabelBefore(Label const & label) const
     return not getLabelElement(label).previousSiblingElement().isNull();
 }
 
-Label NodePrivate::getLabelBefore(Label const & label, codeplace const & cp) const
+
+Label NodePrivate::getLabelBefore (
+    Label const & label,
+    codeplace const & cp
+) const
 {
     QDomElement labelElement = getLabelElement(label);
     hopefully(not labelElement.previousSiblingElement().isNull(), cp);
-    return UuidFromBase64String(
-        labelElement.previousSiblingElement().tagName().toLatin1()
-    );
+    return Label (labelElement.previousSiblingElement().tagName());
 }
 
 // node in label enumeration
@@ -421,7 +438,7 @@ NodePrivate & NodePrivate::getPreviousSiblingInLabel(codeplace const & cp) {
 
 void NodePrivate::setTag(Tag const & tag) {
     hopefully(hasTag(), HERE);
-    _element.setTagName(Base64StringFromUuid(tag.toUuid()));
+    _element.setTagName(tag.toBase64());
 }
 
 // set this node as the first node in the given label

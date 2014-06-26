@@ -47,7 +47,8 @@ private:
 private:
     friend class ::methyl::NodePrivate;
     QDomDocument _document;
-    QMap<QUuid, methyl::NodePrivate *> _mapIdToNode;
+    QReadWriteLock _mapLock;
+    QHash<QString, methyl::NodePrivate *> _mapIdBase64ToNode;
 
 private:
     friend class ::methyl::Observer;

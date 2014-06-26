@@ -64,7 +64,7 @@ QString Error::getDescription() const
         result = nameNode->getText(HERE);
         // caused by?  how to present...
     } else {
-        result = QString("Error Code ID: ") + Base64StringFromUuid(this->getTag(HERE).toUuid());
+        result = QString("Error Code ID: ") + getTag(HERE).toBase64();
     }
     return result;
 }
@@ -72,7 +72,7 @@ QString Error::getDescription() const
 
 Engine::Engine() :
     _document (),
-    _mapIdToNode ()
+    _mapIdBase64ToNode ()
 {
     hopefully(globalEngine == nullptr, HERE);
     globalEngine = this;
@@ -85,7 +85,7 @@ Engine::~Engine()
 {
     hopefully(globalEngine == this, HERE);
     globalEngine = nullptr;
-    hopefully(_mapIdToNode.empty(), HERE);
+    hopefully(_mapIdBase64ToNode.empty(), HERE);
 }
 
 Engine* globalEngine = nullptr;
