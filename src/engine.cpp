@@ -32,13 +32,12 @@ methyl::Tag const globalTagError (HERE);
 methyl::Tag const globalTagCancellation (HERE);
 methyl::Label const globalLabelCausedBy (HERE);
 
-methyl::RootNode<Error> Error::makeCancellation()
-{
+methyl::RootNode<Error> Error::makeCancellation() {
     return methyl::RootNode<Error>::create(globalTagCancellation);
 }
 
-bool Error::wasCausedByCancellation() const
-{
+
+bool Error::wasCausedByCancellation () const {
     auto current = make_optional(thisNodeAs<Error const>());
     do {
         if ((*current)->hasTagEqualTo(globalTagCancellation)) {
@@ -47,7 +46,9 @@ bool Error::wasCausedByCancellation() const
             return true;
         }
         if ((*current)->hasLabel(globalLabelCausedBy)) {
-            current = (*current)->getFirstChildInLabel<Error>(globalLabelCausedBy, HERE);
+            current = (*current)->getFirstChildInLabel<Error>(
+                globalLabelCausedBy, HERE
+            );
         } else {
             current = nullopt;
         }
@@ -55,12 +56,15 @@ bool Error::wasCausedByCancellation() const
     return false;
 }
 
-QString Error::getDescription() const
+
+QString Error::getDescription () const
 {
     QString result;
     auto tagNode = maybeGetTagNode();
     if (tagNode and (*tagNode)->hasLabel(methyl::globalLabelName)) {
-        auto nameNode = (*tagNode)->getFirstChildInLabel(methyl::globalLabelName, HERE);
+        auto nameNode = (*tagNode)->getFirstChildInLabel(
+            methyl::globalLabelName, HERE
+        );
         result = nameNode->getText(HERE);
         // caused by?  how to present...
     } else {
@@ -70,23 +74,29 @@ QString Error::getDescription() const
 }
 
 
-Engine::Engine() :
+Engine::Engine () :
     _document (),
     _mapIdBase64ToNode ()
 {
     hopefully(globalEngine == nullptr, HERE);
     globalEngine = this;
 
-    qRegisterMetaType<optional<NodeRef<Node const>>>("optional<NodeRef<Node const>>>");
-    qRegisterMetaType<optional<NodeRef<Node>>>("optional<NodeRef<Node>>>");
+    qRegisterMetaType<optional<NodeRef<Node const>>>(
+        "optional<NodeRef<Node const>>>"
+    );
+
+    qRegisterMetaType<optional<NodeRef<Node>>>(
+        "optional<NodeRef<Node>>>"
+    );
 }
 
-Engine::~Engine()
-{
+
+Engine::~Engine () {
     hopefully(globalEngine == this, HERE);
     globalEngine = nullptr;
     hopefully(_mapIdBase64ToNode.empty(), HERE);
 }
+
 
 Engine* globalEngine = nullptr;
 

@@ -48,19 +48,23 @@ NodePrivate & NodePrivate::NodeFromDomElement(const QDomElement & element) {
     return const_cast<NodePrivate &>(*result); 
 }
 
+
 Label NodePrivate::LabelFromDomElement(const QDomElement& element) {
     return Label (element.tagName());
 }
+
 
 unique_ptr<NodePrivate> NodePrivate::create(Tag const & tag) {
     QUuid uuid = QUuid::createUuid();
     return unique_ptr<NodePrivate> (new NodePrivate(uuid, tag));
 }
 
+
 unique_ptr<NodePrivate> NodePrivate::createText(QString const & data) {
     QUuid uuid = QUuid::createUuid();
     return unique_ptr<NodePrivate> (new NodePrivate(uuid, data));
 }
+
 
 unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree() const {
     NodePrivate const & original = *this;
@@ -138,6 +142,7 @@ NodePrivate::NodePrivate (methyl::Identity const & id, QString const & data)
     );
 }
 
+
 NodePrivate::NodePrivate (methyl::Identity const & id, Tag const & tag)
 {
     QString tagBase64 = tag.toBase64();
@@ -196,6 +201,7 @@ NodePrivate const & NodePrivate::getDoc() const {
     return NodeFromDomElement(globalEngine->_document.documentElement());
 }
 
+
 NodePrivate & NodePrivate::getDoc() {
     NodePrivate const & constRef = *this;
     return const_cast<NodePrivate &>(constRef.getDoc());
@@ -207,14 +213,17 @@ methyl::Identity NodePrivate::getId() const {
 }
 
 
+
+//
 // Parent specification
+//
 
 bool NodePrivate::hasParent() const {
     return not _element.parentNode().isNull();
 }
 
-NodePrivate const & NodePrivate::getParent(codeplace const & cp) const
-{
+
+NodePrivate const & NodePrivate::getParent (codeplace const & cp) const {
     hopefully(hasParent(), cp);
     const QDomElement parentLabelElement = _element.parentNode().toElement();
     const QDomElement parentNodeElement =
@@ -224,21 +233,21 @@ NodePrivate const & NodePrivate::getParent(codeplace const & cp) const
     return NodeFromDomElement(parentNodeElement);
 }
 
-NodePrivate & NodePrivate::getParent(codeplace const & cp)
-{
+
+NodePrivate & NodePrivate::getParent (codeplace const & cp) {
     NodePrivate const & constRef = *this;
     return const_cast<NodePrivate &>(constRef.getParent(cp));
 }
 
-Label NodePrivate::getLabelInParent(codeplace const & cp) const
-{
+
+Label NodePrivate::getLabelInParent (codeplace const & cp) const {
     hopefully(hasParent(), cp);
     const QDomElement immediateParent =  _element.parentNode().toElement();
     return LabelFromDomElement(immediateParent);
 }
 
-bool NodePrivate::hasTag() const
-{
+
+bool NodePrivate::hasTag() const {
     return _element.tagName() != "text";
 }
 
@@ -247,15 +256,23 @@ Tag NodePrivate::getTag (codeplace const & cp) const {
     hopefully(_element.tagName() != "text", cp);
     return Tag (_element.tagName());
 }
-QString NodePrivate::getText(codeplace const & cp) const {
+
+
+QString NodePrivate::getText (codeplace const & cp) const {
     hopefully(_element.tagName() == "text", cp);
     return _element.attribute("text");
 }
 
-// label enumeration; no user-controllable ordering
-// invariant order from methyl::Identity
 
-tuple<bool, optional<QDomElement>> NodePrivate::maybeGetLabelElementCore(
+
+//
+// Label-in-Node Enumeration
+//
+// Order is not user-controllable.  It is invariant from the ordering
+// specified by methyl::Label::compare()
+//
+
+tuple<bool, optional<QDomElement>> NodePrivate::maybeGetLabelElementCore (
     Label const & label,
     bool createIfNecessary
 ) const {
@@ -318,36 +335,34 @@ tuple<bool, optional<QDomElement>> NodePrivate::maybeGetLabelElementCore(
     return make_tuple(false, nullopt);
 }
 
-bool NodePrivate::hasAnyLabels() const
-{
+
+bool NodePrivate::hasAnyLabels () const {
     return _element.hasChildNodes();
 }
 
-bool NodePrivate::hasLabel(Label const & label) const
-{
+
+bool NodePrivate::hasLabel (Label const & label) const {
     return static_cast<bool>(maybeGetLabelElement(label));
 }
 
-Label NodePrivate::getFirstLabel(codeplace const & cp) const
-{
+
 Label NodePrivate::getFirstLabel (codeplace const & cp) const {
     hopefully(hasAnyLabels(), cp);
     return Label (_element.firstChildElement().tagName());
 }
 
-Label NodePrivate::getLastLabel(codeplace const & cp) const
-{
+
 Label NodePrivate::getLastLabel (codeplace const & cp) const {
     hopefully(hasAnyLabels(), cp);
     return Label (_element.lastChildElement().tagName());
 }
 
-bool NodePrivate::hasLabelAfter(Label const & label) const
-{
+
+bool NodePrivate::hasLabelAfter (Label const & label) const {
     return not getLabelElement(label).nextSiblingElement().isNull();
 }
 
-Label NodePrivate::getLabelAfter(Label const & label, codeplace const & cp) const
+
 Label NodePrivate::getLabelAfter (
     Label const & label,
     codeplace const & cp
@@ -358,8 +373,8 @@ Label NodePrivate::getLabelAfter (
     return Label (labelElement.nextSiblingElement().tagName());
 }
 
-bool NodePrivate::hasLabelBefore(Label const & label) const
-{
+
+bool NodePrivate::hasLabelBefore (Label const & label) const {
     return not getLabelElement(label).previousSiblingElement().isNull();
 }
 
@@ -374,8 +389,16 @@ Label NodePrivate::getLabelBefore (
     return Label (labelElement.previousSiblingElement().tagName());
 }
 
-// node in label enumeration
-NodePrivate const & NodePrivate::getFirstChildInLabel(Label const & label, codeplace const & cp) const
+
+
+//
+// Node In Label Enumeration
+//
+
+NodePrivate const & NodePrivate::getFirstChildInLabel (
+    Label const & label,
+    codeplace const & cp
+) const
 {
     QDomElement labelElement = getLabelElement(label);
     QDomElement childElement = labelElement.firstChildElement();
@@ -384,12 +407,20 @@ NodePrivate const & NodePrivate::getFirstChildInLabel(Label const & label, codep
     return NodeFromDomElement(childElement);
 }
 
-NodePrivate & NodePrivate::getFirstChildInLabel(Label const & label, codeplace const & cp) {
+
+NodePrivate & NodePrivate::getFirstChildInLabel (
+    Label const & label,
+    codeplace const & cp
+) {
     NodePrivate const & constRef = *this;
     return const_cast<NodePrivate &>(constRef.getFirstChildInLabel(label, cp));
 }
 
-NodePrivate const & NodePrivate::getLastChildInLabel(Label const & label, codeplace const & cp) const
+
+NodePrivate const & NodePrivate::getLastChildInLabel (
+    Label const & label,
+    codeplace const & cp
+) const
 {
     QDomElement labelElement = getLabelElement(label);
     QDomElement childElement = labelElement.lastChildElement();
@@ -397,40 +428,56 @@ NodePrivate const & NodePrivate::getLastChildInLabel(Label const & label, codepl
     return NodeFromDomElement(childElement);
 }
 
-NodePrivate & NodePrivate::getLastChildInLabel(Label const & label, codeplace const & cp)
-{
+
+NodePrivate & NodePrivate::getLastChildInLabel (
+    Label const & label,
+    codeplace const & cp
+) {
     NodePrivate const & constRef = *this;
     return const_cast<NodePrivate &>(constRef.getLastChildInLabel(label, cp));
 }
 
-bool NodePrivate::hasNextSiblingInLabel() const
-{
+
+bool NodePrivate::hasNextSiblingInLabel () const {
     return not _element.nextSiblingElement().isNull();
 }
 
-NodePrivate const & NodePrivate::getNextSiblingInLabel(codeplace const & cp) const
+
+NodePrivate const & NodePrivate::getNextSiblingInLabel (
+    codeplace const & cp
+) const
 {
     QDomElement nextElement = _element.nextSiblingElement();
     hopefully(not nextElement.isNull(), cp);
     return NodeFromDomElement(nextElement);
 }
 
-NodePrivate & NodePrivate::getNextSiblingInLabel(codeplace const & cp) {
+
+NodePrivate & NodePrivate::getNextSiblingInLabel (
+    codeplace const & cp
+) {
     NodePrivate const & constRef = *this;
     return const_cast<NodePrivate &>(constRef.getNextSiblingInLabel(cp));
 }
 
-bool NodePrivate::hasPreviousSiblingInLabel() const {
+
+bool NodePrivate::hasPreviousSiblingInLabel () const {
     return not _element.previousSiblingElement().isNull();
 }
 
-NodePrivate const & NodePrivate::getPreviousSiblingInLabel(codeplace const & cp) const {
+
+NodePrivate const & NodePrivate::getPreviousSiblingInLabel (
+    codeplace const & cp
+) const {
     QDomElement previousElement = _element.previousSiblingElement();
     hopefully(not previousElement.isNull(), cp);
     return NodeFromDomElement(_element.previousSiblingElement());
 }
 
-NodePrivate & NodePrivate::getPreviousSiblingInLabel(codeplace const & cp) {
+
+NodePrivate & NodePrivate::getPreviousSiblingInLabel (
+    codeplace const & cp
+) {
     NodePrivate const & constRef = *this;
     return const_cast<NodePrivate &>(constRef.getPreviousSiblingInLabel(cp));
 }
@@ -669,7 +716,6 @@ auto NodePrivate::replaceWith (
     );
 }
 
-/// simple constant accessors
 
 void NodePrivate::setText(
     QString const & data
@@ -679,5 +725,3 @@ void NodePrivate::setText(
 }
 
 } // namespace methyl
-
-
