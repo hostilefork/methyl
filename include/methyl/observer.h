@@ -23,6 +23,7 @@
 #define METHYL_OBSERVER_H
 
 #include <unordered_map>
+#include <type_traits>
 
 #include "hoist/hoist.h"
 #include "methyl/defs.h"
@@ -72,31 +73,28 @@ class Observer : public QObject {
 
 public:
     // simple list to start, will do more later
-    enum Saw {
-        SawNothing = 0, // TODO: decide how to handle the zero value
-        SawHasTag = 1 << 0,
-        SawTag =  1 << 1,
-        SawHasParent = 1 << 2,
-        SawParent = 1 << 3,
-        SawLabelInParent = 1 << 4,
-        SawHasLabel = 1 << 5,
-        SawFirstChild = 1 << 6,
-        SawLastChild = 1 << 7,
-        SawHasNextSiblingInLabel = 1 << 8,
-        SawNextSiblingInLabel = 1 << 9,
-        SawHasPreviousSiblingInLabel = 1 << 10,
-        SawPreviousSiblingInLabel = 1 << 11,
-        SawData = 1 << 12
+    enum class SeenFlags {
+        None = 0, // Note: Needed as we can't convert to bool for testing
+        HasTag = 1 << 0,
+        Tag =  1 << 1,
+        HasParent = 1 << 2,
+        Parent = 1 << 3,
+        LabelInParent = 1 << 4,
+        HasLabel = 1 << 5,
+        FirstChild = 1 << 6,
+        LastChild = 1 << 7,
+        HasNextSiblingInLabel = 1 << 8,
+        NextSiblingInLabel = 1 << 9,
+        HasPreviousSiblingInLabel = 1 << 10,
+        PreviousSiblingInLabel = 1 << 11,
+        Data = 1 << 12
     };
-    Q_DECLARE_FLAGS(SeenFlags, Saw)
 
 private:
     QReadWriteLock mutable _mapLock;
     optional<std::unordered_map<NodePrivate const *, SeenFlags>> _map;
     methyl::Engine & _engine;
 
-// For debugging purposes, I think?
-    //listed<Observer*> _listThis;
 
 // protected constructor, make_shared can't call it...
 // REVIEW: http://stackoverflow.com/a/8147326/211160
@@ -127,38 +125,20 @@ signals:
     void blinded();
 
 private:
-    SeenFlags getSeenFlags (NodePrivate const & node) const {
-        QReadLocker lock (&_mapLock);
-
-        hopefully(_map != nullopt, HERE);
-        auto it = (*_map).find(&node);
-        if (it == (*_map).end()) {
-            return SawNothing;
-        }
-        return it->second;
-    }
+    SeenFlags getSeenFlags (NodePrivate const & node) const;
 
     void addSeenFlags (
         NodePrivate const & node,
         SeenFlags const & flags,
         codeplace const & cp
-    ) {
-        Q_UNUSED(cp);
-        if (isBlinded())
-            return;
+    );
 
-        QWriteLocker lock (&_mapLock);
-
-        auto it = (*_map).find(&node);
-        if (it == (*_map).end()) {
-            (*_map).insert(
-                std::pair<NodePrivate const *, SeenFlags>(&node, flags)
-            );
-        } else {
-            it->second |= flags;
-        }
-    }
-
+    // NOTE: This gets called several times in a row
+    // better to capture the seen flags once... or cache... or something
+    bool maybeObserved (
+        methyl::NodePrivate const & node,
+        SeenFlags const & flags
+    );
 
 public:
     // no effect, also we use this so it would create weird recursion...
@@ -396,21 +376,43 @@ public:
         QString const & data
     );
 
-public:
-    // NOTE: This gets called several times in a row
-    // better to capture the observer once... or cache... or something
-    bool maybeObserved (
-        methyl::NodePrivate const & node,
-        SeenFlags const & flags
-    ) {
-        return getSeenFlags(node) & flags;
-    }
-
     virtual ~Observer();
 };
 
 }
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(methyl::Observer::SeenFlags)
+
+// C++11 type-safe bitflag operations compatible with "enum class"
+// (Qt's QFlags will not work with this feature.)
+//
+//    http://stackoverflow.com/a/4227264/211160
+//    http://stackoverflow.com/a/8357462/211160
+//
+// Must test for == or != to SeenFlags::None as bool/int conversion is not
+// possible for an enum class.
+
+inline methyl::Observer::SeenFlags operator| (
+    methyl::Observer::SeenFlags const & a,
+    methyl::Observer::SeenFlags const & b
+) {
+    using SeenFlags = methyl::Observer::SeenFlags;
+    typedef std::underlying_type<SeenFlags>::type ut;
+
+    return static_cast<SeenFlags>(
+        static_cast<ut>(a) | static_cast<ut>(b)
+    );
+}
+
+inline methyl::Observer::SeenFlags operator& (
+    methyl::Observer::SeenFlags const & a,
+    methyl::Observer::SeenFlags const & b
+) {
+    using SeenFlags = methyl::Observer::SeenFlags;
+    typedef std::underlying_type<SeenFlags>::type ut;
+
+    return static_cast<SeenFlags>(
+        static_cast<ut>(a) & static_cast<ut>(b)
+    );
+}
 
 #endif // METHYL_OBSERVATIONS_H

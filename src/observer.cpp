@@ -22,9 +22,82 @@
 #include "methyl/observer.h"
 #include "methyl/engine.h"
 
+QDebug & operator<< (
+    QDebug o,
+    methyl::Observer::SeenFlags const flags
+) {
+    using SeenFlags = methyl::Observer::SeenFlags;
+
+    o << "SeenFlags(";
+
+    bool first = true;
+
+    for (
+        SeenFlags saw = SeenFlags::HasTag;
+        saw <= SeenFlags::Data;
+        saw = static_cast<SeenFlags>(
+            static_cast<int>(saw) << 1
+        )
+    ) {
+        if ((flags & saw) != SeenFlags::None) {
+            switch (saw) {
+            case SeenFlags::HasTag:
+                o << "HasTag";
+                break;
+            case SeenFlags::Tag:
+                o << "Parent";
+                break;
+            case SeenFlags::HasParent:
+                o << "HasParent";
+                break;
+            case SeenFlags::Parent:
+                o << "Parent";
+                break;
+            case SeenFlags::LabelInParent:
+                o << "LabelInParent";
+                break;
+            case SeenFlags::HasLabel:
+                o << "Label";
+                break;
+            case SeenFlags::FirstChild:
+                o << "FirstChild";
+                break;
+            case SeenFlags::LastChild:
+                o << "LastChild";
+                break;
+            case SeenFlags::HasNextSiblingInLabel:
+                o << "HasNextSiblingInLabel";
+                break;
+            case SeenFlags::NextSiblingInLabel:
+                o << "NextSiblingInLabel";
+                break;
+            case SeenFlags::HasPreviousSiblingInLabel:
+                o << "HasPreviousSiblingInLabel";
+                break;
+            case SeenFlags::PreviousSiblingInLabel:
+                o << "PreviousSiblingInLabel";
+                break;
+            case SeenFlags::Data:
+                o << "Data";
+                break;
+            default:
+                throw hopefullyNotReached(HERE);
+            }
+
+            if (not first) {
+                o << "|";
+            } else {
+                first = false;
+            }
+        }
+    }
+
+    return o << ")";
+}
+
 namespace methyl {
 
-tracked<bool> globalDebugObserver (false, HERE);
+tracked<bool> globalDebugObserver (true, HERE);
 
 shared_ptr<Observer> Observer::create(codeplace const & cp) {
     return globalEngine->makeObserver(cp);
@@ -43,6 +116,53 @@ Observer::Observer (methyl::Engine & engine, codeplace const & cp) :
 
 
 //
+// LOOKUP ROUTINES
+// These check the observation map.
+//
+
+Observer::SeenFlags Observer::getSeenFlags (NodePrivate const & node) const {
+    QReadLocker lock (&_mapLock);
+
+    hopefully(_map != nullopt, HERE);
+    auto it = (*_map).find(&node);
+    if (it == (*_map).end()) {
+        return SeenFlags::None;
+    }
+    return it->second;
+}
+
+
+void Observer::addSeenFlags (
+    NodePrivate const & node,
+    SeenFlags const & flags,
+    codeplace const & cp
+) {
+    Q_UNUSED(cp);
+    if (isBlinded())
+        return;
+
+    QWriteLocker lock (&_mapLock);
+
+    auto it = (*_map).find(&node);
+    if (it == (*_map).end()) {
+        (*_map).insert(
+            std::pair<NodePrivate const *, SeenFlags>(&node, flags)
+        );
+    } else {
+        it->second = it->second | flags;
+    }
+}
+
+
+bool Observer::maybeObserved (
+    methyl::NodePrivate const & node,
+    SeenFlags const & flags
+) {
+    return (getSeenFlags(node) & flags) != SeenFlags::None;
+}
+
+
+//
 // READ OPERATIONS
 // Record the read as interesting only to the currently effective observer
 //
@@ -56,10 +176,10 @@ void Observer::getFirstChildInLabel(
     Q_UNUSED(result);
     Q_UNUSED(label);
     // changes to first child in any label will invalidate
-    addSeenFlags(thisNode, SawFirstChild, HERE);
+    addSeenFlags(thisNode, SeenFlags::FirstChild, HERE);
     // effectively, we have been told the result has no previous siblings and
-    // its label in parent is label!  So no need for SawLabelInParent or
-    // SawHasPreviousSiblingInLabel
+    // its label in parent is label!  So no need for SeenFlags::LabelInParent or
+    // SeenFlags::HasPreviousSiblingInLabel
 }
 
 void Observer::getLastChildInLabel(
@@ -70,10 +190,10 @@ void Observer::getLastChildInLabel(
     Q_UNUSED(result);
     Q_UNUSED(label);
     // changes to last child in any label will invalidate
-    addSeenFlags(thisNode, SawLastChild, HERE);
+    addSeenFlags(thisNode, SeenFlags::LastChild, HERE);
     // effectively, we have been told the result has no next siblings and
-    // its label in parent is label!  So no need for SawLabelInParent or
-    // SawHasNextSiblingInLabel
+    // its label in parent is label!  So no need for SeenFlags::LabelInParent or
+    // SeenFlags::HasNextSiblingInLabel
 }
 
 void Observer::hasParent(
@@ -81,7 +201,7 @@ void Observer::hasParent(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawHasParent, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasParent, HERE);
 }
 
 void Observer::getParent(
@@ -89,7 +209,7 @@ void Observer::getParent(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawParent, HERE);
+    addSeenFlags(thisNode, SeenFlags::Parent, HERE);
 }
 
 void Observer::getLabelInParent(
@@ -97,7 +217,7 @@ void Observer::getLabelInParent(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawLabelInParent, HERE);
+    addSeenFlags(thisNode, SeenFlags::LabelInParent, HERE);
 }
 
 void Observer::hasParentEqualTo(
@@ -131,7 +251,7 @@ void Observer::hasTag(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawHasTag, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasTag, HERE);
 }
 
 void Observer::hasTagEqualTo(
@@ -151,7 +271,7 @@ void Observer::getTag(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result)
-    addSeenFlags(thisNode, SawTag, HERE);
+    addSeenFlags(thisNode, SeenFlags::Tag, HERE);
 }
 
 void Observer::tryGetTagNode(
@@ -172,7 +292,7 @@ void Observer::hasAnyLabels(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawHasLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
 
@@ -183,7 +303,7 @@ void Observer::hasLabel(
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
-    addSeenFlags(thisNode, SawHasLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
 
@@ -192,7 +312,7 @@ void Observer::getFirstLabel(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawHasLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
 
@@ -201,7 +321,7 @@ void Observer::getLastLabel(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawHasLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
 
@@ -212,7 +332,7 @@ void Observer::hasLabelAfter(
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
-    addSeenFlags(thisNode, SawHasLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
 
@@ -223,7 +343,7 @@ void Observer::getLabelAfter(
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
-    addSeenFlags(thisNode, SawHasLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
 
@@ -234,7 +354,7 @@ void Observer::hasLabelBefore(
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
-    addSeenFlags(thisNode, SawHasLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
 
@@ -245,7 +365,7 @@ void Observer::getLabelBefore(
 ) {
     Q_UNUSED(result);
     Q_UNUSED(label);
-    addSeenFlags(thisNode, SawHasLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
 
@@ -256,7 +376,7 @@ void Observer::hasNextSiblingInLabel(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawHasNextSiblingInLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasNextSiblingInLabel, HERE);
 }
 
 void Observer::getNextSiblingInLabel(
@@ -264,7 +384,7 @@ void Observer::getNextSiblingInLabel(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawNextSiblingInLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::NextSiblingInLabel, HERE);
 }
 
 void Observer::hasPreviousSiblingInLabel(
@@ -272,7 +392,7 @@ void Observer::hasPreviousSiblingInLabel(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawHasPreviousSiblingInLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::HasPreviousSiblingInLabel, HERE);
 }
 
 void Observer::getPreviousSiblingInLabel(
@@ -280,7 +400,7 @@ void Observer::getPreviousSiblingInLabel(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawPreviousSiblingInLabel, HERE);
+    addSeenFlags(thisNode, SeenFlags::PreviousSiblingInLabel, HERE);
 }
 
 void Observer::getText(
@@ -288,7 +408,7 @@ void Observer::getText(
     NodePrivate const & thisNode
 ) {
     Q_UNUSED(result);
-    addSeenFlags(thisNode, SawData, HERE);
+    addSeenFlags(thisNode, SeenFlags::Data, HERE);
 }
 
 
@@ -307,7 +427,7 @@ void Observer::setTag(
     globalEngine->forAllObservers([&](Observer & observer) {
         if (observer.isBlinded())
             return;
-        if (observer.maybeObserved(thisNode, SawTag)) {
+        if (observer.maybeObserved(thisNode, SeenFlags::Tag)) {
             observer.markBlind();
             return;
         }
@@ -329,15 +449,15 @@ void Observer::insertChildAsFirstInLabel(
             return;
 
         if (observer.maybeObserved(newChild,
-            SawHasParent
-            | SawParent
-            | SawLabelInParent
+            SeenFlags::HasParent
+            | SeenFlags::Parent
+            | SeenFlags::LabelInParent
         )) {
             observer.markBlind();
             return;
         }
 
-        if (observer.maybeObserved(thisNode, SawFirstChild)) {
+        if (observer.maybeObserved(thisNode, SeenFlags::FirstChild)) {
             observer.markBlind();
             return;
         }
@@ -345,18 +465,18 @@ void Observer::insertChildAsFirstInLabel(
         if (nextChildInLabel) {
             if (observer.maybeObserved(
                 *nextChildInLabel,
-                SawHasPreviousSiblingInLabel
+                SeenFlags::HasPreviousSiblingInLabel
             )) {
                 observer.markBlind();
                 return;
             }
 
-            if (observer.maybeObserved(thisNode, SawHasNextSiblingInLabel)) {
+            if (observer.maybeObserved(thisNode, SeenFlags::HasNextSiblingInLabel)) {
                 observer.markBlind();
                 return;
             }
         } else {
-            if (observer.maybeObserved(thisNode, SawHasLabel)) {
+            if (observer.maybeObserved(thisNode, SeenFlags::HasLabel)) {
                 observer.markBlind();
                 return;
             }
@@ -378,35 +498,35 @@ void Observer::insertChildAsLastInLabel(
             return;
 
         if (observer.maybeObserved(newChild,
-            SawHasParent
-            | SawParent
-            | SawLabelInParent
+            SeenFlags::HasParent
+            | SeenFlags::Parent
+            | SeenFlags::LabelInParent
         )) {
             observer.markBlind();
             return;
         }
 
-        if (observer.maybeObserved(thisNode, SawLastChild)) {
+        if (observer.maybeObserved(thisNode, SeenFlags::LastChild)) {
             observer.markBlind();
             return;
         }
 
         if (previousChildInLabel) {
             if (observer.maybeObserved(*previousChildInLabel,
-                SawHasNextSiblingInLabel
+                SeenFlags::HasNextSiblingInLabel
             )) {
                 observer.markBlind();
                 return;
             }
 
             if (observer.maybeObserved(newChild, 
-                SawHasPreviousSiblingInLabel
+                SeenFlags::HasPreviousSiblingInLabel
             )) {
                 observer.markBlind();
                 return;
             }
         } else {
-            if (observer.maybeObserved(thisNode, SawHasLabel)) {
+            if (observer.maybeObserved(thisNode, SeenFlags::HasLabel)) {
                 observer.markBlind();
                 return;
             }
@@ -431,9 +551,9 @@ void Observer::insertChildBetween(
             return;
 
         if (observer.maybeObserved(newChild,
-            SawHasParent
-            | SawParent
-            | SawLabelInParent
+            SeenFlags::HasParent
+            | SeenFlags::Parent
+            | SeenFlags::LabelInParent
         )) {
             observer.markBlind();
             return;
@@ -442,21 +562,21 @@ void Observer::insertChildBetween(
         // previous and next have same status for has next sibling...
         // but the sibling is changing
         if (observer.maybeObserved(newChild,
-            SawNextSiblingInLabel
-            | SawHasNextSiblingInLabel
-            | SawPreviousSiblingInLabel
-            | SawHasNextSiblingInLabel
+            SeenFlags::NextSiblingInLabel
+            | SeenFlags::HasNextSiblingInLabel
+            | SeenFlags::PreviousSiblingInLabel
+            | SeenFlags::HasNextSiblingInLabel
         )) {
             observer.markBlind();
             return;
         }
 
-        if (observer.maybeObserved(previousChild, SawNextSiblingInLabel)) {
+        if (observer.maybeObserved(previousChild, SeenFlags::NextSiblingInLabel)) {
             observer.markBlind();
             return;
         }
 
-        if (observer.maybeObserved(nextChild, SawPreviousSiblingInLabel)) {
+        if (observer.maybeObserved(nextChild, SeenFlags::PreviousSiblingInLabel)) {
             observer.markBlind();
             return;
         }
@@ -476,11 +596,11 @@ void Observer::detach(
             return;
 
         if (observer.maybeObserved(thisNode,
-            SawHasParent
-            | SawParent
-            | SawLabelInParent
-            | SawNextSiblingInLabel
-            | SawPreviousSiblingInLabel
+            SeenFlags::HasParent
+            | SeenFlags::Parent
+            | SeenFlags::LabelInParent
+            | SeenFlags::NextSiblingInLabel
+            | SeenFlags::PreviousSiblingInLabel
         )) {
             observer.markBlind();
             return;
@@ -488,11 +608,11 @@ void Observer::detach(
 
         if (replacement) {
             if (observer.maybeObserved(*replacement,
-                SawHasParent
-                | SawParent
-                | SawLabelInParent
-                | SawNextSiblingInLabel
-                | SawPreviousSiblingInLabel
+                SeenFlags::HasParent
+                | SeenFlags::Parent
+                | SeenFlags::LabelInParent
+                | SeenFlags::NextSiblingInLabel
+                | SeenFlags::PreviousSiblingInLabel
             )) {
                 observer.markBlind();
                 return;
@@ -500,7 +620,7 @@ void Observer::detach(
         }
         if (previousChild) {
             if (observer.maybeObserved(*previousChild, 
-                SawNextSiblingInLabel
+                SeenFlags::NextSiblingInLabel
             )) {
                 observer.markBlind();
                 return;
@@ -510,7 +630,7 @@ void Observer::detach(
                 (not replacement)
                 and (not nextChild)
                 and observer.maybeObserved(*previousChild,
-                    SawHasNextSiblingInLabel
+                    SeenFlags::HasNextSiblingInLabel
                 )
             ) {
                 observer.markBlind();
@@ -518,13 +638,13 @@ void Observer::detach(
             }
         } else {
             // first child is changing...
-            if (observer.maybeObserved(parent, SawFirstChild)) {
+            if (observer.maybeObserved(parent, SeenFlags::FirstChild)) {
                 observer.markBlind();
                 return;
             }
         }
         if (nextChild) {
-            if (observer.maybeObserved(*nextChild, SawPreviousSiblingInLabel)) {
+            if (observer.maybeObserved(*nextChild, SeenFlags::PreviousSiblingInLabel)) {
                 observer.markBlind();
                 return;
             }
@@ -532,14 +652,14 @@ void Observer::detach(
             if (
                 (not replacement)
                 and (not previousChild)
-                and observer.maybeObserved(*nextChild, SawHasNextSiblingInLabel)
+                and observer.maybeObserved(*nextChild, SeenFlags::HasNextSiblingInLabel)
             ) {
                 observer.markBlind();
                 return;
             }
         } else {
             // last child is changing...
-            if (observer.maybeObserved(parent, SawLastChild)) {
+            if (observer.maybeObserved(parent, SeenFlags::LastChild)) {
                 observer.markBlind();
                 return;
             }
@@ -559,7 +679,7 @@ void Observer::setText(
         if (observer.isBlinded())
             return;
 
-        if (observer.maybeObserved(thisNode, SawData)) {
+        if (observer.maybeObserved(thisNode, SeenFlags::Data)) {
             observer.markBlind();
             return;
         }
