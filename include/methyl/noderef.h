@@ -327,53 +327,45 @@ public:
 public:
     // detach from parent
     RootNode<T> detach() {
-        Label label;
-        NodePrivate const * nodeParent;
-        NodePrivate const * previousChild;
-        NodePrivate const * nextChild;
 
-        unique_ptr<NodePrivate> result = getNode().getNodePrivate().detach(
-            &label,
-            &nodeParent,
-            &previousChild,
-            &nextChild
-        );
+        auto result = getNode().getNodePrivate().detach();
+
+        unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
+        NodePrivate::detach_info & info = std::get<1>(result);
+
         getNode().getObserver()->detach(
-            *result, *nodeParent, nullptr, previousChild, nextChild
+            *detachedNode,
+            info._nodeParent,
+            info._previousChild,
+            info._nextChild,
+            nullptr
         );
 
-        return RootNode<T> (std::move(result), getNode().getContext());
+        return RootNode<T> (std::move(detachedNode), getNode().getContext());
     }
 
     template <class U>
     RootNode<T> replaceWith(RootNode<U> other) {
-        Label label;
-        NodePrivate const * nodeParent;
-        NodePrivate const * previousChild;
-        NodePrivate const * nextChild;
 
         auto otherPrivateOwned = std::move(other.extractNodePrivate());
-        NodePrivate * otherPrivate = otherPrivateOwned.get();
-        auto thisNodePrivate = getNode().getNodePrivate().replaceWith(
-            std::move(otherPrivateOwned),
-            &label,
-            &nodeParent,
-            &previousChild,
-            &nextChild
+        NodePrivate & otherPrivate = *otherPrivateOwned.get();
+
+        auto result = getNode().getNodePrivate().replaceWith(
+            std::move(otherPrivateOwned)
         );
+
+        unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
+        NodePrivate::detach_info & info = std::get<1>(result);
 
         getNode().getObserver()->detach(
-            *thisNodePrivate,
-            *nodeParent,
-            previousChild,
-            nextChild,
-            otherPrivate
+            *detachedNode,
+            info._nodeParent,
+            info._previousChild,
+            info._nextChild,
+            &otherPrivate
         );
 
-        return RootNode<T> (
-            std::move(thisNodePrivate),
-            getNode().getContext()
-        );
+        return RootNode<T> (std::move(detachedNode), getNode().getContext());
     }
 
     ///

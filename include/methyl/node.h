@@ -845,19 +845,23 @@ public:
         RootNode<T> newChild,
         Label const & label
     ) {
-        NodePrivate const * nextChildInLabel;
-        NodePrivate & result = getNodePrivate().insertChildAsFirstInLabel(
-            std::move(newChild.extractNodePrivate()),
-            label,
-            &nextChildInLabel
-        );
+        tuple<NodePrivate &, NodePrivate::insert_info> result
+            = getNodePrivate().insertChildAsFirstInLabel(
+                std::move(newChild.extractNodePrivate()), label
+            );
+
+        NodePrivate & nodeRef = std::get<0>(result);
+
+        NodePrivate::insert_info & info = std::get<1>(result);
+        hopefully(info._previousChild == nullptr, HERE);
+
         getObserver()->insertChildAsFirstInLabel(
             getNodePrivate(),
-            result,
-            label,
-            nextChildInLabel
+            nodeRef,
+            info._labelInParent,
+            info._nextChild
         );
-        return NodeRef<T> (result, getContext());
+        return NodeRef<T> (nodeRef, getContext());
     }
 
     template <class T>
@@ -866,47 +870,51 @@ public:
         Label const & label
     ) {
         NodePrivate const * previousChildInLabel;
-        NodePrivate & result = getNodePrivate().insertChildAsLastInLabel(
-            std::move(newChild.extractNodePrivate()),
-            label,
-            &previousChildInLabel
-        );
+        tuple<NodePrivate &, NodePrivate::insert_info> result
+            = getNodePrivate().insertChildAsLastInLabel(
+                std::move(newChild.extractNodePrivate()), label
+            );
+
+        NodePrivate & nodeRef = std::get<0>(result);
+
+        NodePrivate::insert_info & info = std::get<1>(result);
+        hopefully(info._nextChild == nullptr, HERE);
+
         getObserver()->insertChildAsLastInLabel(
             getNodePrivate(),
-            result,
-            label,
-            previousChildInLabel
+            nodeRef,
+            info._labelInParent,
+            info._previousChild
         );
-        return NodeRef<T> (result, getContext());
+        return NodeRef<T> (nodeRef, getContext());
     }
 
     template <class T>
     NodeRef<T> insertSiblingAfter (
-        RootNode<T> newChild
+        RootNode<T> newSibling
     ) {
-        NodePrivate const * nextChildInLabel;
-        NodePrivate const * parent;
+        tuple<NodePrivate &, NodePrivate::insert_info> result =
+            getNodePrivate().insertSiblingAfter(
+                std::move(newSibling.extractNodePrivate())
+            );
 
-        Label label;
-        NodePrivate & result = getNodePrivate().insertSiblingAfter(
-            std::move(newChild.extractNodePrivate()),
-            &parent,
-            &label,
-            &nextChildInLabel
-        );
-        if (nextChildInLabel == nullptr) {
+        NodePrivate & nodeRef = std::get<0>(result);
+
+        NodePrivate::insert_info & info = std::get<1>(result);
+
+        if (not info._nextChild) {
             getObserver()->insertChildAsLastInLabel(
-                *parent,
-                result,
-                label,
+                *info._nodeParent,
+                nodeRef,
+                info._labelInParent,
                 &getNodePrivate()
             );
         } else {
             getObserver()->insertChildBetween(
-                *parent,
-                result,
+                *info._nodeParent,
+                nodeRef,
                 getNodePrivate(),
-                *nextChildInLabel
+                *info._nextChild
             );
         }
 
@@ -915,35 +923,34 @@ public:
 
     template <class T>
     NodeRef<T> insertSiblingBefore (
-        RootNode<T> newChild
+        RootNode<T> newSibling
     ) {
-        NodePrivate const * previousChildInLabel;
-        NodePrivate const * parent;
+        tuple<NodePrivate &, NodePrivate::insert_info> result =
+            getNodePrivate().insertSiblingBefore(
+                std::move(newSibling.extractNodePrivate())
+            );
 
-        Label label;
-        NodePrivate & result = getNodePrivate().insertSiblingBefore(
-            std::move(newChild.extractNodePrivate()),
-            &parent,
-            &label,
-            &previousChildInLabel
-        );
-        if (previousChildInLabel == nullptr) {
+        NodePrivate & nodeRef = std::get<0>(result);
+
+        NodePrivate::insert_info & info = std::get<1>(result);
+
+        if (not info._previousChild) {
             getObserver()->insertChildAsLastInLabel(
-                *parent,
-                result,
-                label,
+                *info._nodeParent,
+                nodeRef,
+                info._labelInParent,
                 &getNodePrivate()
             );
         } else {
             getObserver()->insertChildBetween(
-                *parent,
-                result,
-                getNodePrivate(),
-                *previousChildInLabel
+                *info._nodeParent,
+                nodeRef,
+                *info._previousChild,
+                getNodePrivate()
             );
         }
 
-        return NodeRef<T> (result, getContext());
+        return NodeRef<T> (nodeRef, getContext());
     }
 
     auto detachAnyChildrenInLabel (Label const & label)

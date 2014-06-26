@@ -222,41 +222,73 @@ public:
     void setTag(Tag const & tag);
 
 public:
-    NodePrivate & insertChildAsFirstInLabel(
+    struct insert_info final {
+        NodePrivate const * _nodeParent;
+        Label _labelInParent;
+        NodePrivate const * _previousChild;
+        NodePrivate const * _nextChild;
+
+        insert_info (
+            NodePrivate const * nodeParent,
+            Label labelInParent,
+            NodePrivate const * previousChild,
+            NodePrivate const * nextChild
+        ) :
+            _nodeParent (nodeParent),
+            _labelInParent (labelInParent),
+            _previousChild (previousChild),
+            _nextChild (nextChild)
+        {
+        }
+    };
+
+    typedef tuple<
+        std::reference_wrapper<NodePrivate>,
+        insert_info
+    > insert_result;
+
+    insert_result insertChildAsFirstInLabel (
         unique_ptr<NodePrivate> newChild,
-        Label const & label,
-        NodePrivate const * * nextChildInLabelOut
+        Label const & label
     );
-    NodePrivate & insertChildAsLastInLabel(
+
+    insert_result insertChildAsLastInLabel (
         unique_ptr<NodePrivate> newChild,
-        Label const & label,
-        NodePrivate const * * previousChildInLabelOut
+        Label const & label
     );
-    NodePrivate & insertSiblingAfter(
-        unique_ptr<NodePrivate> nodeAfter,
-        NodePrivate const * * nodeParentOut,
-        Label * labelInParentOut,
-        NodePrivate const * * nextChildInLabelOut
+
+    insert_result insertSiblingAfter (
+        unique_ptr<NodePrivate> newSibling
     );
-    NodePrivate & insertSiblingBefore(
-        unique_ptr<NodePrivate> nodeBefore,
-        NodePrivate const * * nodeParentOut,
-        Label * labelInParentOut,
-        NodePrivate const * * previousChildInLabelOut
+
+    insert_result insertSiblingBefore (
+        unique_ptr<NodePrivate> newSibling
     );
-    // detach from parent
-    unique_ptr<NodePrivate> detach(
-        Label * labelOut,
-        NodePrivate const * * nodeParentOut,
-        NodePrivate const * * previousChildOut,
-        NodePrivate const * * nextChildOut
-    );
-    unique_ptr<NodePrivate> replaceWith(
-        unique_ptr<NodePrivate> nodeReplacement,
-        Label * labelInParentOut,
-        NodePrivate const * * nodeParentOut,
-        NodePrivate const * * previousChildOut,
-        NodePrivate const * * nextChildOut
+
+    struct detach_info final {
+        NodePrivate const & _nodeParent;
+        Label _labelInParent;
+        NodePrivate const * _previousChild;
+        NodePrivate const * _nextChild;
+
+        detach_info (
+            NodePrivate const & nodeParent,
+            Label labelInParent,
+            NodePrivate const * previousChild,
+            NodePrivate const * nextChild
+        ) :
+            _nodeParent (nodeParent),
+            _labelInParent (labelInParent),
+            _previousChild (previousChild),
+            _nextChild (nextChild)
+        {
+        }
+    };
+
+    tuple<unique_ptr<NodePrivate>, detach_info> detach ();
+
+    tuple<unique_ptr<NodePrivate>, detach_info> replaceWith (
+        unique_ptr<NodePrivate> nodeReplacement
     );
 
     // data modifications
