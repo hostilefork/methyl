@@ -237,39 +237,46 @@ template <class> friend class RootNode;
         contextDoNotUseDirectly = context;
     }
 
+    void checkValid() const {
+        if (not contextDoNotUseDirectly or contextDoNotUseDirectly->isValid())
+            return;
+
+        throw hopefullyNotReached(
+            "Invalid Node Context",
+            contextDoNotUseDirectly->_whereConstructed
+        );
+    }
 
 private:
     // Node extraction--for friend internal classes only
     NodePrivate & getNodePrivate () {
+        checkValid();
         hopefully(nodePrivateDoNotUseDirectly, HERE);
         return *nodePrivateDoNotUseDirectly;
     }
 
     NodePrivate const & getNodePrivate () const {
+        checkValid();
         hopefully(nodePrivateDoNotUseDirectly, HERE);
         return *nodePrivateDoNotUseDirectly;
     }
 
     NodePrivate * maybeGetNodePrivate () {
+        checkValid();
         return nodePrivateDoNotUseDirectly;
     }
 
     NodePrivate const * maybeGetNodePrivate () const {
+        checkValid();
         return nodePrivateDoNotUseDirectly;
     }
 
     shared_ptr<Context> getContext () const {
-        // Even if the node itself is const, we need to be able to change the
-        // observer to mark what things have been seen
+        // For copying into new nodes
         return contextDoNotUseDirectly;
     }
 
-    shared_ptr<Observer> getObserver () const {
-        // Even if the node itself is const, we need to be able to change the
-        // observer to mark what things have been seen
-        return contextDoNotUseDirectly->getObserver();
-    }
-
+    static shared_ptr<Observer> getObserver ();
 
 protected:
     // accessors should not be constructible by anyone but the
@@ -291,6 +298,7 @@ protected:
     NodeRef<T const> thisNodeAs () const {
         return NodeRef<T const>(getNodePrivate(), getContext());
     }
+
     template <class T>
     NodeRef<T> thisNodeAs () {
         return NodeRef<T>(getNodePrivate(), getContext());
@@ -305,6 +313,7 @@ public:
             getContext()
         );
     }
+
     NodeRef<Node> getDoc () {
         return NodeRef<Node>(
             getNodePrivate().getDoc(),
@@ -324,19 +333,19 @@ public:
     // Parent specification
     bool hasParent () const {
         bool result = getNodePrivate().hasParent();
-        getObserver()->hasParent(result, getNodePrivate());
+        Observer::observerInEffect()->hasParent(result, getNodePrivate());
         return result;
     }
 
     NodeRef<Node const> getParent (codeplace const & cp) const {
         NodePrivate const & result = getNodePrivate().getParent(cp);
-        getObserver()->getParent(result, getNodePrivate());
+        Observer::observerInEffect()->getParent(result, getNodePrivate());
         return NodeRef<Node const>(result, getContext());
     }
 
     NodeRef<Node> getParent(codeplace const & cp) {
         NodePrivate & result = getNodePrivate().getParent(cp);
-        getObserver()->getParent(result, getNodePrivate());
+        Observer::observerInEffect()->getParent(result, getNodePrivate());
         return NodeRef<Node>(result, getContext());
     }
 
@@ -379,7 +388,7 @@ public:
     Label getLabelInParent (codeplace const & cp) const {
         Label result = getLabelInParent(cp);
 
-        getObserver()->getLabelInParent(result, getNodePrivate());
+        Observer::observerInEffect()->getLabelInParent(result, getNodePrivate());
         return result;
     }
 
@@ -420,13 +429,13 @@ public:
     // Tag specification
     bool hasTag () const {
         bool result = getNodePrivate().hasTag();
-        getObserver()->hasTag(result, getNodePrivate());
+        Observer::observerInEffect()->hasTag(result, getNodePrivate());
         return result;
     }
 
     Tag getTag (codeplace const & cp) const {
         Tag result = getNodePrivate().getTag(cp);
-        getObserver()->getTag(result, getNodePrivate());
+        Observer::observerInEffect()->getTag(result, getNodePrivate());
         return result;
     }
 
@@ -463,7 +472,7 @@ public:
     bool hasText () const { return getNodePrivate().hasText(); }
     QString getText(codeplace const & cp) const {
         QString result = getNodePrivate().getText(cp);
-        getObserver()->getText(result, getNodePrivate());
+        Observer::observerInEffect()->getText(result, getNodePrivate());
         return result;
     }
 
@@ -481,37 +490,37 @@ public:
 
     bool hasAnyLabels () const {
         bool result = getNodePrivate().hasAnyLabels();
-        getObserver()->hasAnyLabels(result, getNodePrivate());
+        Observer::observerInEffect()->hasAnyLabels(result, getNodePrivate());
         return result;
     }
 
     bool hasLabel (Label const & label) const {
         bool result = getNodePrivate().hasLabel(label);
-        getObserver()->hasLabel(result, getNodePrivate(), label);
+        Observer::observerInEffect()->hasLabel(result, getNodePrivate(), label);
         return result;
     }
 
     Label getFirstLabel (codeplace const & cp) const {
         Label result = getNodePrivate().getFirstLabel(cp);
-        getObserver()->getFirstLabel(result, getNodePrivate());
+        Observer::observerInEffect()->getFirstLabel(result, getNodePrivate());
         return result;
     }
 
     Label getLastLabel (codeplace const & cp) const {
         Label result = getNodePrivate().getLastLabel(cp);
-        getObserver()->getLastLabel(result, getNodePrivate());
+        Observer::observerInEffect()->getLastLabel(result, getNodePrivate());
         return result;
     }
 
     bool hasLabelAfter (Label const & label) const {
         bool result = getNodePrivate().hasLabelAfter(label);
-        getObserver()->hasLabelAfter(result, getNodePrivate(), label);
+        Observer::observerInEffect()->hasLabelAfter(result, getNodePrivate(), label);
         return result;
     }
 
     Label getLabelAfter (Label const & label, codeplace const & cp) const {
         Label result = getNodePrivate().getLabelAfter(label, cp);
-        getObserver()->getLabelAfter(result, getNodePrivate(), label);
+        Observer::observerInEffect()->getLabelAfter(result, getNodePrivate(), label);
         return result;
     }
 
@@ -521,13 +530,13 @@ public:
 
     bool hasLabelBefore (Label const & label) const {
         bool result = getNodePrivate().hasLabelBefore(label);
-        getObserver()->hasLabelBefore(result, getNodePrivate(), label);
+        Observer::observerInEffect()->hasLabelBefore(result, getNodePrivate(), label);
         return result;
     }
 
     Label getLabelBefore (Label const & label, codeplace const & cp) const {
         Label result = getNodePrivate().getLabelBefore(label, cp);
-        getObserver()->getLabelBefore(result, getNodePrivate(), label);
+        Observer::observerInEffect()->getLabelBefore(result, getNodePrivate(), label);
         return result;
     }
 
@@ -547,7 +556,7 @@ public:
     ) const
     {
         auto & result = getNodePrivate().getFirstChildInLabel(label, cp);
-        getObserver()->getFirstChildInLabel(result, getNodePrivate(), label);
+        Observer::observerInEffect()->getFirstChildInLabel(result, getNodePrivate(), label);
         return NodeRef<Node const>(result, getContext());
     }
 
@@ -555,7 +564,7 @@ public:
         Label const & label, codeplace const & cp
     ) {
         auto & result = getNodePrivate().getFirstChildInLabel(label, cp);
-        getObserver()->getFirstChildInLabel(result, getNodePrivate(), label);
+        Observer::observerInEffect()->getFirstChildInLabel(result, getNodePrivate(), label);
         return NodeRef<Node>(result, getContext());
     }
 
@@ -623,7 +632,7 @@ public:
     ) const
     {
         auto & result = getNodePrivate().getLastChildInLabel(label, cp);
-        getObserver()->getLastChildInLabel(result, getNodePrivate(), label);
+        Observer::observerInEffect()->getLastChildInLabel(result, getNodePrivate(), label);
         return NodeRef<Node const>(result, getContext());
     }
 
@@ -632,7 +641,7 @@ public:
         codeplace const & cp
     ) {
         NodePrivate & result = getNodePrivate().getLastChildInLabel(label, cp);
-        getObserver()->getLastChildInLabel(result, getNodePrivate(), label);
+        Observer::observerInEffect()->getLastChildInLabel(result, getNodePrivate(), label);
         return NodeRef<Node>(result, getContext());
     }
 
@@ -690,19 +699,19 @@ public:
 
     bool hasNextSiblingInLabel () const {
         bool result = getNodePrivate().hasNextSiblingInLabel();
-        getObserver()->hasNextSiblingInLabel(result, getNodePrivate());
+        Observer::observerInEffect()->hasNextSiblingInLabel(result, getNodePrivate());
         return result;
     }
 
     NodeRef<Node const> getNextSiblingInLabel (codeplace const & cp) const {
         NodePrivate const & result = getNodePrivate().getNextSiblingInLabel(cp);
-        getObserver()->getNextSiblingInLabel(result, getNodePrivate());
+        Observer::observerInEffect()->getNextSiblingInLabel(result, getNodePrivate());
         return NodeRef<Node const>(result, getContext());
     }
 
     NodeRef<Node> getNextSiblingInLabel (codeplace const & cp) {
         NodePrivate & result = getNodePrivate().getNextSiblingInLabel(cp);
-        getObserver()->getNextSiblingInLabel(result, getNodePrivate());
+        Observer::observerInEffect()->getNextSiblingInLabel(result, getNodePrivate());
         return NodeRef<Node>(result, getContext());
     }
 
@@ -754,7 +763,7 @@ public:
 
     bool hasPreviousSiblingInLabel () const {
         bool result = getNodePrivate().hasPreviousSiblingInLabel();
-        getObserver()->hasPreviousSiblingInLabel(result, getNodePrivate());
+        Observer::observerInEffect()->hasPreviousSiblingInLabel(result, getNodePrivate());
         return result;
     }
 
@@ -762,13 +771,13 @@ public:
         -> NodeRef<Node const>
     {
         auto & result = getNodePrivate().getPreviousSiblingInLabel(cp);
-        getObserver()->getPreviousSiblingInLabel(result, getNodePrivate());
+        Observer::observerInEffect()->getPreviousSiblingInLabel(result, getNodePrivate());
         return NodeRef<Node const>(result, getContext());
     }
 
     NodeRef<Node> getPreviousSiblingInLabel (codeplace const & cp) {
         NodePrivate & result = getNodePrivate().getPreviousSiblingInLabel(cp);
-        getObserver()->getPreviousSiblingInLabel(result, getNodePrivate());
+        Observer::observerInEffect()->getPreviousSiblingInLabel(result, getNodePrivate());
         return NodeRef<Node const>(result, getContext());
     }
 
@@ -835,7 +844,7 @@ public:
 public:
     void setTag (Tag const & tag) {
         getNodePrivate().setTag(tag);
-        getObserver()->setTag(getNodePrivate(), tag);
+        Observer::observerInEffect()->setTag(getNodePrivate(), tag);
         return;
     }
 
@@ -855,7 +864,7 @@ public:
         NodePrivate::insert_info & info = std::get<1>(result);
         hopefully(info._previousChild == nullptr, HERE);
 
-        getObserver()->insertChildAsFirstInLabel(
+        Observer::observerInEffect()->insertChildAsFirstInLabel(
             getNodePrivate(),
             nodeRef,
             info._labelInParent,
@@ -880,7 +889,7 @@ public:
         NodePrivate::insert_info & info = std::get<1>(result);
         hopefully(info._nextChild == nullptr, HERE);
 
-        getObserver()->insertChildAsLastInLabel(
+        Observer::observerInEffect()->insertChildAsLastInLabel(
             getNodePrivate(),
             nodeRef,
             info._labelInParent,
@@ -903,14 +912,14 @@ public:
         NodePrivate::insert_info & info = std::get<1>(result);
 
         if (not info._nextChild) {
-            getObserver()->insertChildAsLastInLabel(
+            Observer::observerInEffect()->insertChildAsLastInLabel(
                 *info._nodeParent,
                 nodeRef,
                 info._labelInParent,
                 &getNodePrivate()
             );
         } else {
-            getObserver()->insertChildBetween(
+            Observer::observerInEffect()->insertChildBetween(
                 *info._nodeParent,
                 nodeRef,
                 getNodePrivate(),
@@ -935,14 +944,14 @@ public:
         NodePrivate::insert_info & info = std::get<1>(result);
 
         if (not info._previousChild) {
-            getObserver()->insertChildAsLastInLabel(
+            Observer::observerInEffect()->insertChildAsLastInLabel(
                 *info._nodeParent,
                 nodeRef,
                 info._labelInParent,
                 &getNodePrivate()
             );
         } else {
-            getObserver()->insertChildBetween(
+            Observer::observerInEffect()->insertChildBetween(
                 *info._nodeParent,
                 nodeRef,
                 *info._previousChild,
@@ -974,7 +983,7 @@ public:
 public:
     void setText (QString const & str) {
         getNodePrivate().setText(str);
-        getObserver()->setText(getNodePrivate(), str);
+        Observer::observerInEffect()->setText(getNodePrivate(), str);
     }
 
     void insertCharBeforeIndex (
@@ -985,7 +994,7 @@ public:
         QString str = getNodePrivate().getText(cp);
         str.insert(index, ch);
         getNodePrivate().setText(str);
-        getObserver()->setText(getNodePrivate(), str);
+        Observer::observerInEffect()->setText(getNodePrivate(), str);
     }
 
     void insertCharAfterIndex (
@@ -996,14 +1005,14 @@ public:
         QString str = getNodePrivate().getText(cp);
         str.insert(index + 1, ch);
         getNodePrivate().setText(str);
-        getObserver()->setText(getNodePrivate(), str);
+        Observer::observerInEffect()->setText(getNodePrivate(), str);
     }
 
     void deleteCharAtIndex (int index, codeplace const & cp) {
         QString str = getNodePrivate().getText(cp);
         str.remove(index, 1);
         getNodePrivate().setText(str);
-        getObserver()->setText(getNodePrivate(), str);
+        Observer::observerInEffect()->setText(getNodePrivate(), str);
     }
 
 public:

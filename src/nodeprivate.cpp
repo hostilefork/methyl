@@ -578,7 +578,7 @@ NodePrivate::insert_result NodePrivate::insertSiblingAfter (
     hopefully(not newSibling->hasParent(), HERE);
     NodePrivate & nodeParent = getParent(HERE);
 
-    QDomElement labelElement = getLabelElement(getLabelInParent(HERE));
+    QDomElement labelElement = nodeParent.getLabelElement(getLabelInParent(HERE));
     hopefully(newSibling->_element == labelElement.insertAfter(
         newSibling->_element, _element
     ), HERE);
@@ -609,7 +609,7 @@ NodePrivate::insert_result NodePrivate::insertSiblingBefore (
     hopefully(not newSibling->hasParent(), HERE);
     NodePrivate & nodeParent = getParent(HERE);
 
-    QDomElement labelElement = getLabelElement(getLabelInParent(HERE));
+    QDomElement labelElement = nodeParent.getLabelElement(getLabelInParent(HERE));
     hopefully(newSibling->_element == labelElement.insertBefore(
         newSibling->_element, _element
     ), HERE);
@@ -717,11 +717,48 @@ auto NodePrivate::replaceWith (
 }
 
 
-void NodePrivate::setText(
+void NodePrivate::setText (
     QString const & data
 ) {
     hopefully(_element.tagName() == "text", HERE);
     _element.setAttribute("text", data);
+}
+
+
+//
+// Tree Walking and comparison
+//
+
+int NodePrivate::compare (NodePrivate const & other) const {
+    NodePrivate const * thisCur = this;
+    NodePrivate const * otherCur = &other;
+
+    do {
+        if (thisCur->hasText() and not otherCur->hasText())
+            return -1;
+        if (not thisCur->hasText() and otherCur->hasText())
+            return 1;
+        if (thisCur->hasText() and otherCur->hasText()) {
+            int cmp = thisCur->getText(HERE).compare(otherCur->getText(HERE));
+            if (cmp != 0)
+                return cmp;
+        } else {
+            int cmp = thisCur->getTag(HERE).compare(otherCur->getTag(HERE));
+            if (cmp != 0)
+                return cmp;
+            if (thisCur->getTag(HERE) != otherCur->getTag(HERE))
+                return false;
+        }
+        thisCur = thisCur->maybeNextPreorderNodeUnderRoot(*this);
+        otherCur = otherCur->maybeNextPreorderNodeUnderRoot(other);
+    } while (thisCur and otherCur);
+
+    if (thisCur and not otherCur)
+        return -1;
+    if (otherCur and not thisCur)
+        return 1;
+
+    return 0;
 }
 
 } // namespace methyl

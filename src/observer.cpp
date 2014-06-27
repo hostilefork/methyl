@@ -99,19 +99,27 @@ namespace methyl {
 
 tracked<bool> globalDebugObserver (true, HERE);
 
-shared_ptr<Observer> Observer::create(codeplace const & cp) {
-    return globalEngine->makeObserver(cp);
+shared_ptr<Observer> Observer::create (codeplace const & cp, bool blind) {
+    // can't use make_shared when constructor is private
+    return shared_ptr<Observer>(new Observer (cp, blind));
 }
 
 
-Observer::Observer (methyl::Engine & engine, codeplace const & cp) :
-    _map (std::unordered_map<NodePrivate const *, SeenFlags>()),
-    _engine (engine)
+shared_ptr<Observer> Observer::observerInEffect () {
+    return globalEngine->observerInEffect();
+}
+
+
+Observer::Observer (codeplace const & cp, bool blind)
 {
     Q_UNUSED(cp);
 
-    QWriteLocker lock (&_engine._observersLock);
-    _engine._observers.insert(this);
+    if (not blind) {
+        _map = std::unordered_map<NodePrivate const *, SeenFlags>();
+    }
+
+    QWriteLocker lock (&globalEngine->_observersLock);
+    globalEngine->_observers.insert(this);
 }
 
 
@@ -686,10 +694,9 @@ void Observer::setText(
     });
 }
 
-Observer::~Observer()
-{
-    QWriteLocker lock (&_engine._observersLock);
-    _engine._observers.erase(this);
+Observer::~Observer() {
+    QWriteLocker lock (&globalEngine->_observersLock);
+    globalEngine->_observers.erase(this);
 }
 
 } // end namespace methyl

@@ -75,10 +75,14 @@ template <class T1, class T2> friend
 bool operator==(RootNode<T1> const & x, RootNode<T2> const & y);
 
 private:
-    T & getNode()
-        { return _nodeDoNotUseDirectly; }
-    T const & getNode() const
-        { return _nodeDoNotUseDirectly; }
+    T & getNode() {
+        return _nodeDoNotUseDirectly;
+    }
+
+    T const & getNode() const {
+        return _nodeDoNotUseDirectly;
+    }
+
 
 private:
     unique_ptr<NodePrivate> extractNodePrivate() {
@@ -90,9 +94,11 @@ private:
         return unique_ptr<NodePrivate> (&node);
     }
 
+
 public:
-    explicit operator bool () const
-        { return getNode().maybeGetNodePrivate() != nullptr; }
+    explicit operator bool () const {
+        return getNode().maybeGetNodePrivate() != nullptr;
+    }
 
     NodeRef<T const> get() const {
         Q_ASSERT(static_cast<bool>(*this));
@@ -123,8 +129,7 @@ public:
         return;
     }
 
-    RootNode & operator= (RootNode && other)
-    {
+    RootNode & operator= (RootNode && other) {
         unique_ptr<NodePrivate> otherNode = other.extractNodePrivate();
         unique_ptr<NodePrivate> thisNode = extractNodePrivate();
         getNode().setInternalProperties(
@@ -177,11 +182,13 @@ protected:
     }
 
 public:
-    T const * operator-> () const
-        { return &getNode(); }
+    T const * operator-> () const {
+        return &getNode();
+    }
 
-    T * operator-> ()
-        { return &getNode(); }
+    T * operator-> () {
+        return &getNode();
+    }
 
     // http://stackoverflow.com/a/15418208/211160
     virtual ~RootNode () noexcept {
@@ -205,7 +212,7 @@ public:
         // somewhere persistently where it might be seen again
         return RootNode<T>(
             std::move(NodePrivate::create(tag)),
-            make_shared<Context>(Observer::create(HERE))
+            Context::contextForCreate()
         );
     }
 
@@ -216,7 +223,7 @@ public:
         // somewhere persistently where it might be seen again
         return RootNode<T>(
             std::move(NodePrivate::createText(str)),
-            make_shared<Context>(Observer::create(HERE))
+            Context::contextForCreate()
         );
     }
 };

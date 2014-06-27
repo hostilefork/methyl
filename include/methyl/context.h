@@ -24,35 +24,71 @@
 
 #include "methyl/observer.h"
 
+// Every NodeRef or RootNode may optionally contain a shared pointer to
+// a Context object.  That Context pointer will be propagated into any
+// Node handles which are navigated to by means of that node.
+//
+// A derived class from an Context can encode arbitrary information that
+// you may extract using the Methyl Engine.  But there are two other
+// functions that a context performs.
+//
+// One is to tell you if the node is still "valid".  This validity check
+// can be used to purposefully throw an exception instead of reading
+// possibly reallocated memory.
+//
+// The second is to determine whether a read operation on a certain node
+// should count as a registration of an observation on it, for a specific
+// Observer.
+//
+// By default, methyl does not put any Context in a newly created node.
+// You can change this by providing the Methyl Engine with a context
+// factory object.
+
 namespace methyl {
 
+class Node;
+class Engine;
+template<class> class RootNode;
+
 class Context {
+
+friend class Node;
 private:
-    shared_ptr<Observer> _observer;
-    bool _expired;
+    codeplace _whereConstructed;
+
+
+    //
+    // When a RootNode creation is requested, there is no context to copy from
+    // (as there is when getting a NodeRef from an existing node).  Since
+    // Context is something produced by the methyl client, the Engine has
+    // to offer a hook to either make the object (or give a shared pointer
+    // to one that already exists).  Due to the header file dependencies,
+    // it's not currently possible to #include "methyl/engine.h" in the
+    // node header files to find the create function...so contact with the
+    // engine is offered through this hook routine implemented in context.cpp
+    //
+friend class Engine;
+template<class> friend class RootNode;
+private:
+    static shared_ptr<Context> contextForCreate();
+
 
 public:
-    Context(shared_ptr<Observer> observer) :
-        _observer (observer),
-        _expired (false)
+    Context (codeplace const & whereConstructed)
     {
-
     }
 
-    shared_ptr<Observer> getObserver() {
-        return _observer;
+    virtual bool isObservedBy (shared_ptr<Observer> observer) const {
+        return true;
     }
 
-    bool isExpired() const {
-        return _expired;
+    virtual bool isValid () const {
+        return true;
     }
 
-    // emit a signal of some kind, here?
-    void makeExpired() {
-        _expired = true;
-    }
 
-    virtual ~Context() {};
+    virtual ~Context () {
+    }
 };
 
 

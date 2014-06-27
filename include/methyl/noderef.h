@@ -333,7 +333,7 @@ public:
         unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
         NodePrivate::detach_info & info = std::get<1>(result);
 
-        getNode().getObserver()->detach(
+        Observer::observerInEffect()->detach(
             *detachedNode,
             info._nodeParent,
             info._previousChild,
@@ -357,7 +357,7 @@ public:
         unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
         NodePrivate::detach_info & info = std::get<1>(result);
 
-        getNode().getObserver()->detach(
+        Observer::observerInEffect()->detach(
             *detachedNode,
             info._nodeParent,
             info._previousChild,

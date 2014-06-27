@@ -75,8 +75,26 @@ QString Error::getDescription () const
 
 
 Engine::Engine () :
-    _document (),
-    _mapIdBase64ToNode ()
+    Engine (
+        []() -> shared_ptr<Context> {
+            static shared_ptr<Context> dummy = make_shared<Context>(HERE);
+            return dummy;
+        },
+        []() -> shared_ptr<Observer> {
+            static shared_ptr<Observer> dummy = Observer::create(HERE, true);
+            return dummy;
+        }
+    )
+{
+}
+
+
+Engine::Engine (
+    ContextGetter const & contextGetter,
+    ObserverGetter const & observerGetter
+) :
+    _contextGetter (contextGetter),
+    _observerGetter (observerGetter)
 {
     hopefully(globalEngine == nullptr, HERE);
     globalEngine = this;
@@ -88,6 +106,27 @@ Engine::Engine () :
     qRegisterMetaType<optional<NodeRef<Node>>>(
         "optional<NodeRef<Node>>>"
     );
+}
+
+
+RootNode<Node> Engine::makeNodeWithId (
+    methyl::Identity const & id,
+    methyl::Tag const & tag,
+    optional<QString const &> name
+) {
+    auto nodeWithId = RootNode<Node> (
+        // cannot use make_unique here; private constructor
+        unique_ptr<NodePrivate> (new NodePrivate (id, tag)),
+        Context::contextForCreate()
+    );
+
+    if (name) {
+        nodeWithId->insertChildAsFirstInLabel(
+            RootNode<Node>::createText(*name),
+            globalLabelName
+        );
+    }
+    return nodeWithId;
 }
 
 

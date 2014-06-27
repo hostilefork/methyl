@@ -30,8 +30,9 @@
 
 namespace methyl {
 
-// REVIEW: Other general classes to keep people from reinventing common
-// needs?
+typedef std::function<shared_ptr<Context>()> ContextGetter;
+
+typedef std::function<shared_ptr<Observer>()> ObserverGetter;
 
 
 // The methyl::Engine is responsible for managing the opening and
@@ -49,6 +50,8 @@ private:
     QDomDocument _document;
     QReadWriteLock _mapLock;
     QHash<QString, methyl::NodePrivate *> _mapIdBase64ToNode;
+    ContextGetter _contextGetter;
+    ObserverGetter _observerGetter;
 
 private:
     friend class ::methyl::Observer;
@@ -64,37 +67,24 @@ public:
         }
     }
 
-    shared_ptr<Observer> makeObserver (codeplace const & cp) {
-        return shared_ptr<Observer>(new Observer (*this, cp));
+    shared_ptr<Observer> observerInEffect () {
+        return _observerGetter();
     }
 
-    NodeRef<Node const> monitoredNode(
-        NodeRef<Node const> node,
-        shared_ptr<Observer> observer
-    ) {
-        return NodeRef<Node const>(
-            node.getNode().getNodePrivate(),
-            make_shared<Context>(observer)
-        );
+    shared_ptr<Context> contextForCreate () {
+        return _contextGetter();
     }
 
-    // Is the complexity of an "unmonitored Node" worth it?
-    // It's a performance gain, so probably.  Decks (Daemons) need monitored
-    // nodes but any other briefer operation probably does not
-    NodeRef<Node const> unmonitoredNode(
-        NodeRef<Node const> node
+    template <class T>
+    NodeRef<T> contextualNodeRef (
+        NodeRef<T> const & node,
+        shared_ptr<Context> const & context
     ) {
-        // do this more efficiently?
-        auto blindObserver = Observer::create(HERE);
-        blindObserver->markBlind();
-        return NodeRef<Node const>(
-            node.getNode().getNodePrivate(),
-            make_shared<Context>(blindObserver)
-        );
+        return NodeRef<T> (node.getNode().getNodePrivate(), context);
     }
 
     template <class NodeType>
-    optional<NodeRef<NodeType const>> reconstituteNode(
+    optional<NodeRef<NodeType const>> reconstituteNode (
         NodePrivate const * nodePrivate,
         shared_ptr<Context> context
     ) {
@@ -105,7 +95,7 @@ public:
     }
 
     template <class NodeType>
-    optional<RootNode<NodeType>> reconstituteRootNode(
+    optional<RootNode<NodeType>> reconstituteRootNode (
         NodePrivate * nodePrivateOwned,
         shared_ptr<Context> context
     ) {
@@ -146,29 +136,19 @@ public:
         );
     }
 
-    RootNode<Node> makeNodeWithId(
+    RootNode<Node> makeNodeWithId (
         methyl::Identity const & id,
         methyl::Tag const & tag,
-        QString const & name
-    ) {
-        // make_unique doesn't work here due to this private constructor,
-        // figure out better way of doing this
-        auto nodeWithId = methyl::RootNode<methyl::Node> (
-            unique_ptr<methyl::NodePrivate> (
-                new methyl::NodePrivate (id, tag)),
-                make_shared<Context> (makeObserver(HERE))
-            );
-        if (not name.isEmpty()) {
-            nodeWithId->insertChildAsFirstInLabel(
-                methyl::RootNode<Node>::createText(name),
-                globalLabelName
-            );
-        }
-        return nodeWithId;
-    }
+        optional<QString const &> name
+    );
 
 public:
     explicit Engine ();
+
+    explicit Engine (
+        ContextGetter const & contextGetter,
+        ObserverGetter const & observerGetter
+    );
 
     virtual ~Engine ();
 };

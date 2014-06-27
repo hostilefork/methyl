@@ -64,7 +64,8 @@ class Engine;
 // what has happened since.  It is a separate question from the
 // validity of a node handle--that is managed by the Context.
 //
-class Observer : public QObject {
+class Observer final : public QObject {
+
     Q_OBJECT
 
     friend class Engine;
@@ -93,15 +94,19 @@ public:
 private:
     QReadWriteLock mutable _mapLock;
     optional<std::unordered_map<NodePrivate const *, SeenFlags>> _map;
-    methyl::Engine & _engine;
 
 
 // protected constructor, make_shared can't call it...
 // REVIEW: http://stackoverflow.com/a/8147326/211160
 private:
-    explicit Observer (methyl::Engine & engine, codeplace const & cp);
-private:
-    static shared_ptr<Observer> create (codeplace const & cp);
+    explicit Observer (codeplace const & cp, bool blind);
+public:
+    static shared_ptr<Observer> create (
+        codeplace const & cp,
+        bool blind = false
+    );
+
+    static shared_ptr<Observer> observerInEffect ();
 
 private:
     void markBlind() {
@@ -113,16 +118,15 @@ private:
         emit blinded();
     }
 
+signals:
+    void blinded();
+
 public:
-    // Should this be protected and only visible to Node?
     bool isBlinded() {
         QReadLocker lock (&_mapLock);
         return _map == nullopt;
     }
 
-signals:
-    void invalidated();
-    void blinded();
 
 private:
     SeenFlags getSeenFlags (NodePrivate const & node) const;

@@ -38,49 +38,23 @@ namespace methyl {
 // the header and none of the tricks used there.  But it should follow
 // that pattern after stabilization.
 
+
 class NodePrivate final {
-private:
-    // Nodes may have data or they may have labeled children (not both)
-    // If node has children:
-    //  tag is the Uuid of the node's Tag in Base64
-    //  attribute "id" is Uuid of the node's Identity in Base64
-    //  labels are QDomElement children of this element
-    //      their tags are the label Identity
-    //      children of these labels are parent's children in that label
-    //  If node has data:
-    //  tag is the string "data"
-    //  attribute "id" is Uuid of the node's Identity in Base64
-    //  attribute "data" is the node's UNICODE data string
-    QDomElement _element;
 
-protected:
-    // never call this explicitly, manage lifetime w/unique_ptr
-    // final class: need not be virtual!  Rare case.
-    ~NodePrivate(); 
-public:
-    template <typename> friend struct std::default_delete;
-
-// construction / destruction are private
-// clients should use static New() method
-friend class Node;
-friend class Engine;
-
-private:
-    NodePrivate (Identity const & id, QString const & str);
-    NodePrivate (Identity const & id, Tag const & tag);
+//////////////////////////////////////////////////////////////////////////////
+//
+// API exposed to Node, RootNode, and NodeRef
+//
+// This is the NodePrivate API.  It is not public to clients of methyl, but
+// it is what the methyl node types build upon.  A NodePrivate is not
+// concerned with higher level issues like node contexts or the observer
+// pattern; it is only concerned with the mechanics of the data structure.
+// Handles are to a non-copyable object
+//
 
 public:
-    NodePrivate () = delete;
-    NodePrivate (NodePrivate const &) = delete;
-    NodePrivate & operator= (NodePrivate const &) = delete;
+    static NodePrivate const * maybeGetFromId (Identity const & id);
 
-// Implementation helpers
-private:
-    static NodePrivate & NodeFromDomElement(QDomElement const & element);
-    static Label LabelFromDomElement(QDomElement const & element);
-
-public:
-    static NodePrivate const * maybeGetFromId(Identity const & id);
 
 public:
     bool operator== (NodePrivate const & other) const {
@@ -90,113 +64,156 @@ public:
         return _element != other._element;
     }
 
-public:
-    static unique_ptr<NodePrivate> create(Tag const & tag);
-    unique_ptr<NodePrivate> makeCloneOfSubtree() const;
 
-// read-only accessors
+    //
+    // Node Creation
+    //
+public:
+    static unique_ptr<NodePrivate> create (Tag const & tag);
+
+    static unique_ptr<NodePrivate> createText (QString const & data);
+
+    unique_ptr<NodePrivate> makeCloneOfSubtree () const;
+
+
+    //
+    // REVIEW: Document and Identity
+    //
 public:
     NodePrivate const & getDoc() const;
+
     NodePrivate & getDoc();
 
-    // Extract the Identity of this node.
-public:
     Identity getId() const;
 
+
+    //
+    // Parent Examination
+    //
 public:
-    // Parent specification
     bool hasParent() const;
-    NodePrivate const & getParent(codeplace const & cp) const;
-    NodePrivate & getParent(codeplace const & cp);
-    Label getLabelInParent(codeplace const & cp) const;
 
+    NodePrivate const & getParent (codeplace const & cp) const;
+
+    NodePrivate & getParent (codeplace const & cp);
+
+    Label getLabelInParent (codeplace const & cp) const;
+
+
+    //
+    // Tag Examination
+    //
 public:
-    // Tag specification
-    bool hasTag() const;
-    Tag getTag(codeplace const & cp) const;
+    bool hasTag () const;
 
-    // Data accessors
-    bool hasText() const { return !hasTag(); }
-    QString getText(codeplace const & cp) const; // should have more 'micro-observer'...
+    Tag getTag (codeplace const & cp) const;
 
-private:
-    tuple<bool, optional<QDomElement>> maybeGetLabelElementCore (
-        Label const & label,
-        bool createIfNecessary = false
-    ) const;
-    optional<QDomElement> maybeGetLabelElement(Label const & label) const {
-        return std::get<1>(maybeGetLabelElementCore(label, false));
-    }
-    tuple<bool, QDomElement> getLabelElementCreateIfNecessary(
-        Label const & label
-    ) const {
-        auto wasCreatedAndLabelElement = maybeGetLabelElementCore(label, true);
-        return std::make_tuple(
-            std::get<0>(wasCreatedAndLabelElement),
-            *std::get<1>(wasCreatedAndLabelElement)
-        );
-    }
-    QDomElement getLabelElement(Label const & label) const {
-        return *(std::get<1>(maybeGetLabelElementCore(label, false)));
-    }
 
+    //
+    // Data Examination
+    //
+    // Issue: Should there be more 'micro-observers'?
+    //
 public:
+    bool hasText () const {
+        return not hasTag();
+    }
+
+    QString getText (codeplace const & cp) const;
+
+
+    //
     // label enumeration; no implicit ordering, invariant order from Identity
-    bool hasAnyLabels() const;
-    bool hasLabel(Label const & label) const;
-    Label getFirstLabel(codeplace const & cp) const;
-    Label getLastLabel(codeplace const & cp) const;
+    //
+public:
+    bool hasAnyLabels () const;
 
-    bool hasLabelAfter(Label const & label) const;
-    Label getLabelAfter(Label const & label, codeplace const & cp) const;
-    optional<Label> maybeGetLabelAfter(Label const & label) const {
+    bool hasLabel (Label const & label) const;
+
+    Label getFirstLabel (codeplace const & cp) const;
+
+    Label getLastLabel (codeplace const & cp) const;
+
+    bool hasLabelAfter (Label const & label) const;
+
+    Label getLabelAfter (Label const & label, codeplace const & cp) const;
+
+    optional<Label> maybeGetLabelAfter (Label const & label) const {
         if (not hasLabelAfter(label))
             return nullopt;
         return getLabelAfter(label, HERE);
     }
-    bool hasLabelBefore(Label const & label) const;
-    Label getLabelBefore(Label const & label, codeplace const & cp) const;
-    optional<Label> maybeGetLabelBefore(Label const & label) const {
+
+    bool hasLabelBefore (Label const & label) const;
+
+    Label getLabelBefore (Label const & label, codeplace const & cp) const;
+
+    optional<Label> maybeGetLabelBefore (Label const & label) const {
         if (not hasLabelBefore(label))
             return nullopt;
         return getLabelBefore(label, HERE);
     }
 
+
+    //
     // node in label enumeration
-    NodePrivate const & getFirstChildInLabel(Label const & label, codeplace const & cp) const;
-    NodePrivate & getFirstChildInLabel(Label const & label, codeplace const & cp);
-    NodePrivate const * maybeGetFirstChildInLabel(Label const & label) const {
-        if (not hasLabel(label))
-            return nullptr;
-        return &getFirstChildInLabel(label, HERE);
-    }
-    NodePrivate * maybeGetFirstChildInLabel(Label const & label) {
+    //
+public:
+    NodePrivate const & getFirstChildInLabel (
+        Label const & label,
+        codeplace const & cp
+    ) const;
+
+    NodePrivate & getFirstChildInLabel (
+        Label const & label,
+        codeplace const & cp
+    );
+
+    NodePrivate const * maybeGetFirstChildInLabel (Label const & label) const {
         if (not hasLabel(label))
             return nullptr;
         return &getFirstChildInLabel(label, HERE);
     }
 
-    NodePrivate const & getLastChildInLabel(Label const & label, codeplace const & cp) const;
-    NodePrivate & getLastChildInLabel(Label const & label, codeplace const & cp);
-    NodePrivate const * maybeGetLastChildInLabel(Label const & label) const {
+    NodePrivate * maybeGetFirstChildInLabel (Label const & label) {
+        if (not hasLabel(label))
+            return nullptr;
+        return &getFirstChildInLabel(label, HERE);
+    }
+
+    NodePrivate const & getLastChildInLabel (
+        Label const & label,
+        codeplace const & cp
+    ) const;
+
+    NodePrivate & getLastChildInLabel (
+        Label const & label, codeplace const & cp
+    );
+
+    NodePrivate const * maybeGetLastChildInLabel (Label const & label) const {
         if (not hasLabel(label))
             return nullptr;
         return &getLastChildInLabel(label, HERE);
     }
-    NodePrivate * maybeGetLastChildInLabel(Label const & label) {
+
+    NodePrivate * maybeGetLastChildInLabel (Label const & label) {
         if (not hasLabel(label))
             return nullptr;
         return &getLastChildInLabel(label, HERE);
     }
 
     bool hasNextSiblingInLabel() const;
-    NodePrivate const & getNextSiblingInLabel(codeplace const & cp) const;
-    NodePrivate & getNextSiblingInLabel(codeplace const & cp);
+
+    NodePrivate const & getNextSiblingInLabel (codeplace const & cp) const;
+
+    NodePrivate & getNextSiblingInLabel (codeplace const & cp);
+
     NodePrivate const * maybeGetNextSiblingInLabel() const {
         if (not hasNextSiblingInLabel())
             return nullptr;
         return &getNextSiblingInLabel(HERE);
     }
+
     NodePrivate * maybeGetNextSiblingInLabel() {
         if (not hasNextSiblingInLabel())
             return nullptr;
@@ -204,24 +221,30 @@ public:
     }
 
     bool hasPreviousSiblingInLabel() const;
+
     NodePrivate const & getPreviousSiblingInLabel(codeplace const & cp) const;
+
     NodePrivate & getPreviousSiblingInLabel(codeplace const & cp);
+
     NodePrivate const * maybeGetPreviousSiblingInLabel() const {
         if (not hasPreviousSiblingInLabel())
             return nullptr;
         return &getPreviousSiblingInLabel(HERE);
     }
+
     NodePrivate * maybeGetPreviousSiblingInLabel() {
         if (not hasPreviousSiblingInLabel())
             return nullptr;
         return &getPreviousSiblingInLabel(HERE);
     }
 
+
+    //
     // structural modifications
+    //
 public:
     void setTag(Tag const & tag);
 
-public:
     struct insert_info final {
         NodePrivate const * _nodeParent;
         Label _labelInParent;
@@ -291,13 +314,8 @@ public:
         unique_ptr<NodePrivate> nodeReplacement
     );
 
-    // data modifications
-public:
     void setText(QString const & str);
 
-// simple constant accessors
-public:
-    static unique_ptr<NodePrivate> createText(QString const & data);
 
 // traversal and comparison
 public:
@@ -326,7 +344,7 @@ public:
         return nullptr;
     }
 
-    NodePrivate * maybeNextPreorderNodeUnderRoot(
+    NodePrivate * maybeNextPreorderNodeUnderRoot (
         NodePrivate const & nodeRoot
     ) {
         NodePrivate const & constRef = *this;
@@ -338,52 +356,113 @@ public:
     // I don't really like the integer return values, and I'm not sure if I'm
     // picking the right cases to be -1 or 1.  Private for now.
 private:
-    int compare(NodePrivate const & other) const
-    {
-        NodePrivate const * thisCur = this;
-        NodePrivate const * otherCur = &other;
+    int compare (NodePrivate const & other) const;
 
-        do {
-            if (thisCur->hasText() and not otherCur->hasText())
-                return -1;
-            if (not thisCur->hasText() and otherCur->hasText())
-                return 1;
-            if (thisCur->hasText() and otherCur->hasText()) {
-                int cmp = thisCur->getText(HERE).compare(otherCur->getText(HERE));
-                if (cmp != 0)
-                    return cmp;
-            } else {
-                int cmp = thisCur->getTag(HERE).compare(otherCur->getTag(HERE));
-                if (cmp != 0)
-                    return cmp;
-                if (thisCur->getTag(HERE) != otherCur->getTag(HERE))
-                    return false;
-            }
-            thisCur = thisCur->maybeNextPreorderNodeUnderRoot(*this);
-            otherCur = otherCur->maybeNextPreorderNodeUnderRoot(other);
-        } while (thisCur and otherCur);
-
-        if (thisCur and not otherCur)
-            return -1;
-        if (otherCur and not thisCur)
-            return 1;
-
-        return 0;
-    }
 
 public:
-    bool isSubtreeCongruentTo(NodePrivate const & other) const
-    {
+    bool isSubtreeCongruentTo (NodePrivate const & other) const {
         return compare(other) == 0;
     }
 
     // See remarks above about not being sure if I've picked the absolute right
     // invariants for -1 vs +1.  This is going to be canon...encoded in file
     // formats and stuff, it should be gotten right!
-    bool lowerStructureRankThan(NodePrivate const & other) const
-    {
+    bool lowerStructureRankThan (NodePrivate const & other) const {
         return compare(other) == -1;
     }
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Internal helpers
+//
+// These routines are private and used in the implementation.
+//
+
+    //
+    // The stub implementation of the methyl structure, based on the Qt DOM,
+    // uses two levels of hierarchy to implement a single level of methyl
+    // hierarchy.  This is because there is no labeling of children in the
+    // XML DOM--only attributes.  Methyl has no attributes and only labeled
+    // children... so labels wind up being mapped to their own QDomElements
+    // underneath the QDomElement representing the parent of a Node.
+    //
+private:
+    static NodePrivate & NodeFromDomElement (QDomElement const & element);
+
+    static Label LabelFromDomElement (QDomElement const & element);
+
+    tuple<bool, optional<QDomElement>> maybeGetLabelElementCore (
+        Label const & label,
+        bool createIfNecessary = false
+    ) const;
+
+    optional<QDomElement> maybeGetLabelElement(Label const & label) const {
+        return std::get<1>(maybeGetLabelElementCore(label, false));
+    }
+
+    tuple<bool, QDomElement> getLabelElementCreateIfNecessary(
+        Label const & label
+    ) const {
+        auto wasCreatedAndLabelElement = maybeGetLabelElementCore(label, true);
+        return std::make_tuple(
+            std::get<0>(wasCreatedAndLabelElement),
+            *std::get<1>(wasCreatedAndLabelElement)
+        );
+    }
+
+    QDomElement getLabelElement(Label const & label) const {
+        return *(std::get<1>(maybeGetLabelElementCore(label, false)));
+    }
+
+
+    //
+    // Construction and Assignment
+    //
+    // The only exposed way to create a NodePrivate is through a static
+    // factory method that returns a unique_ptr.
+    //
+friend class Node;
+friend class Engine;
+private:
+    NodePrivate () = delete;
+
+    NodePrivate (NodePrivate const &) = delete;
+
+    NodePrivate (NodePrivate &&) = delete;
+
+    NodePrivate & operator= (NodePrivate const &) = delete;
+
+    NodePrivate (Identity const & id, QString const & str);
+
+    NodePrivate (Identity const & id, Tag const & tag);
+
+
+    //
+    // Destruction
+    //
+    // Lifetime is always managed with w/unique_ptr; no stack creation of
+    // NodePrivate is allowed.  We also make this a final class, so the
+    // destructor need not be virtual.
+    //
+template <typename> friend struct std::default_delete;
+protected:
+    ~NodePrivate();
+
+
+private:
+    // Nodes may have data or they may have labeled children (not both)
+    // If node has children:
+    //  tag is the Uuid of the node's Tag in Base64
+    //  attribute "id" is Uuid of the node's Identity in Base64
+    //  labels are QDomElement children of this element
+    //      their tags are the label Identity
+    //      children of these labels are parent's children in that label
+    //  If node has data:
+    //  tag is the string "data"
+    //  attribute "id" is Uuid of the node's Identity in Base64
+    //  attribute "data" is the node's UNICODE data string
+    QDomElement _element;
 };
 
 
