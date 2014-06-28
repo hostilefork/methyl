@@ -182,7 +182,7 @@ NodePrivate::~NodePrivate ()
             while (hasLabel(lastLabel)) {
                 auto result = getFirstChildInLabel(lastLabel, HERE).detach();
                 unique_ptr<NodePrivate> & ownedNode = std::get<0>(result);
-                ownedNode.release();
+                ownedNode.reset();
             }
         }
     }

@@ -193,8 +193,8 @@ public:
     // http://stackoverflow.com/a/15418208/211160
     virtual ~RootNode () noexcept {
         if (static_cast<bool>(*this)) {
-            unique_ptr<NodePrivate> nodeToFree (extractNodePrivate());
-            nodeToFree.release();
+            unique_ptr<NodePrivate> nodeToFree = extractNodePrivate();
+            nodeToFree.reset();
         }
     }
 
