@@ -140,7 +140,7 @@ struct structure_hash<methyl::NodeRef<T>>
             if (current->hasText()) {
                 result ^= qHash(current->getText(HERE));
             } else {
-                result ^= qHash(current->getTag(HERE).toUuid());
+                result ^= tagHasher(current->getTag(HERE));
             }
             current = current->maybeNextPreorderNodeUnderRoot(nodePrivate);
         }
@@ -168,8 +168,7 @@ struct structure_hash<methyl::RootNode<T>>
         methyl::RootNode<T> const & ownedNode
     ) const
     {
-        structure_hash<methyl::NodeRef<T>> hasher;
-        return hasher(ownedNode.get());
+        return structure_hash<methyl::NodeRef<T>>()(ownedNode.get());
     }
 };
 

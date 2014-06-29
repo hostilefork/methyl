@@ -23,6 +23,9 @@
 #define METHYL_NODEPRIVATE_H
 
 #include "methyl/defs.h"
+#include "methyl/identity.h"
+#include "methyl/tag.h"
+#include "methyl/label.h"
 
 #include <unordered_set>
 
@@ -53,20 +56,20 @@ class NodePrivate final {
 //
 
 public:
-    static NodePrivate const * maybeGetFromId (Identity const & id);
+    static optional<NodePrivate const &> maybeGetFromId (Identity const & id);
 
 
 public:
     bool operator== (NodePrivate const & other) const {
-        return _element == other._element;
+        return this == &other;
     }
     bool operator!= (NodePrivate const & other) const {
-        return _element != other._element;
+        return this != &other;
     }
 
 
     //
-    // Node Creation
+    // NodeIdentity and Creation
     //
 public:
     static unique_ptr<NodePrivate> create (Tag const & tag);
@@ -74,15 +77,6 @@ public:
     static unique_ptr<NodePrivate> createText (QString const & data);
 
     unique_ptr<NodePrivate> makeCloneOfSubtree () const;
-
-
-    //
-    // REVIEW: Document and Identity
-    //
-public:
-    NodePrivate const & getDoc() const;
-
-    NodePrivate & getDoc();
 
     Identity getId() const;
 
@@ -99,6 +93,9 @@ public:
 
     Label getLabelInParent (codeplace const & cp) const;
 
+    NodePrivate const & getRoot() const;
+
+    NodePrivate & getRoot();
 
     //
     // Tag Examination
@@ -132,24 +129,42 @@ public:
 
     Label getFirstLabel (codeplace const & cp) const;
 
+    optional<Label> maybeGetFirstLabel () const {
+        if (not hasAnyLabels())
+            return nullopt;
+        return getFirstLabel(HERE);
+    }
+
     Label getLastLabel (codeplace const & cp) const;
 
-    bool hasLabelAfter (Label const & label) const;
+    optional<Label> maybeGetLastLabel () const {
+        if (not hasAnyLabels())
+            return nullopt;
+        return getLastLabel(HERE);
+    }
+
+    bool hasLabelAfter (Label const & label, codeplace const & cp) const;
 
     Label getLabelAfter (Label const & label, codeplace const & cp) const;
 
-    optional<Label> maybeGetLabelAfter (Label const & label) const {
-        if (not hasLabelAfter(label))
+    optional<Label> maybeGetLabelAfter (
+        Label const & label,
+        codeplace const & cp
+    ) const {
+        if (not hasLabelAfter(label, cp))
             return nullopt;
         return getLabelAfter(label, HERE);
     }
 
-    bool hasLabelBefore (Label const & label) const;
+    bool hasLabelBefore (Label const & label, codeplace const & cp) const;
 
     Label getLabelBefore (Label const & label, codeplace const & cp) const;
 
-    optional<Label> maybeGetLabelBefore (Label const & label) const {
-        if (not hasLabelBefore(label))
+    optional<Label> maybeGetLabelBefore (
+        Label const & label,
+        codeplace const & cp
+    ) const {
+        if (not hasLabelBefore(label, cp))
             return nullopt;
         return getLabelBefore(label, HERE);
     }
@@ -290,13 +305,13 @@ public:
 
     struct detach_info final {
         NodePrivate const & _nodeParent;
-        Label _labelInParent;
+        Label const & _labelInParent;
         NodePrivate const * _previousChild;
         NodePrivate const * _nextChild;
 
         detach_info (
             NodePrivate const & nodeParent,
-            Label labelInParent,
+            Label const & labelInParent,
             NodePrivate const * previousChild,
             NodePrivate const * nextChild
         ) :
@@ -311,7 +326,7 @@ public:
     tuple<unique_ptr<NodePrivate>, detach_info> detach ();
 
     tuple<unique_ptr<NodePrivate>, detach_info> replaceWith (
-        unique_ptr<NodePrivate> nodeReplacement
+        unique_ptr<NodePrivate> replacement
     );
 
     void setText(QString const & str);
@@ -334,7 +349,7 @@ public:
 
             Label labelInParent = nodeCur->getLabelInParent(HERE);
             NodePrivate const & nodeParent = nodeCur->getParent(HERE);
-            if (nodeParent.hasLabelAfter(labelInParent))
+            if (nodeParent.hasLabelAfter(labelInParent, HERE))
                 return &nodeParent.getFirstChildInLabel(
                     nodeParent.getLabelAfter(labelInParent, HERE), HERE
                 );
@@ -380,43 +395,6 @@ public:
 //
 
     //
-    // The stub implementation of the methyl structure, based on the Qt DOM,
-    // uses two levels of hierarchy to implement a single level of methyl
-    // hierarchy.  This is because there is no labeling of children in the
-    // XML DOM--only attributes.  Methyl has no attributes and only labeled
-    // children... so labels wind up being mapped to their own QDomElements
-    // underneath the QDomElement representing the parent of a Node.
-    //
-private:
-    static NodePrivate & NodeFromDomElement (QDomElement const & element);
-
-    static Label LabelFromDomElement (QDomElement const & element);
-
-    tuple<bool, optional<QDomElement>> maybeGetLabelElementCore (
-        Label const & label,
-        bool createIfNecessary = false
-    ) const;
-
-    optional<QDomElement> maybeGetLabelElement(Label const & label) const {
-        return std::get<1>(maybeGetLabelElementCore(label, false));
-    }
-
-    tuple<bool, QDomElement> getLabelElementCreateIfNecessary(
-        Label const & label
-    ) const {
-        auto wasCreatedAndLabelElement = maybeGetLabelElementCore(label, true);
-        return std::make_tuple(
-            std::get<0>(wasCreatedAndLabelElement),
-            *std::get<1>(wasCreatedAndLabelElement)
-        );
-    }
-
-    QDomElement getLabelElement(Label const & label) const {
-        return *(std::get<1>(maybeGetLabelElementCore(label, false)));
-    }
-
-
-    //
     // Construction and Assignment
     //
     // The only exposed way to create a NodePrivate is through a static
@@ -446,23 +424,53 @@ private:
     // destructor need not be virtual.
     //
 template <typename> friend struct std::default_delete;
-protected:
+private:
     ~NodePrivate();
 
 
+    // Miscellaneous
 private:
-    // Nodes may have data or they may have labeled children (not both)
-    // If node has children:
-    //  tag is the Uuid of the node's Tag in Base64
-    //  attribute "id" is Uuid of the node's Identity in Base64
-    //  labels are QDomElement children of this element
-    //      their tags are the label Identity
-    //      children of these labels are parent's children in that label
-    //  If node has data:
-    //  tag is the string "data"
-    //  attribute "id" is Uuid of the node's Identity in Base64
-    //  attribute "data" is the node's UNICODE data string
-    QDomElement _element;
+    struct relationship_info {
+        std::reference_wrapper<Label const> _labelInParent;
+        std::reference_wrapper<std::vector<NodePrivate *>> _siblings;
+        std::vector<NodePrivate *>::iterator _iter;
+
+    public:
+        relationship_info (
+            Label const & label,
+            std::vector<NodePrivate *> & siblings,
+            std::vector<NodePrivate *>::iterator iter
+        ) :
+            _labelInParent (label),
+            _siblings (siblings),
+            _iter (iter)
+        {
+        }
+    };
+
+    relationship_info relationshipToParent (
+        codeplace const & cp
+    ) const;
+
+    relationship_info relationshipToParent (
+        codeplace const & cp
+    );
+
+private:
+    // optional parent... null if root
+    NodePrivate * _parent;
+
+    // identity of this node
+    Identity _id;
+
+    // if a node has a tag, it may also have an ordered map of labels and a
+    // vector of child nodes in that label
+    optional<Tag> _tag;
+    std::map<Label, std::vector<NodePrivate *>> _labelToChildren;
+
+    // Nodes which do not have tags must have a unicode string of data,
+    // and no child nodes.
+    optional<QString> _text;
 };
 
 

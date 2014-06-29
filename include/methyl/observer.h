@@ -37,9 +37,9 @@ namespace methyl {
 // classes in that header.  Hence we cannot include "node.h".  These
 // forward definitions are in order to  directly into the node.h
 class NodePrivate;
+class Node;
 template <class> class NodeRef;
 template <class> class RootNode;
-typedef class Identity Tag;
 
 // A goal is to try and get NodePrivate and all privileged operations
 // implemented through the methyl::Engine.  We want to friend this class

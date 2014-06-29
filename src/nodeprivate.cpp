@@ -32,41 +32,33 @@ tracked<bool> globalDebugNodeLabeling (false, HERE);
 // STATIC METHODS
 //
 
-NodePrivate const * NodePrivate::maybeGetFromId(methyl::Identity const & id) {
+optional<NodePrivate const &> NodePrivate::maybeGetFromId (
+    methyl::Identity const & id
+) {
     QReadLocker lock (&globalEngine->_mapLock);
 
-    return globalEngine->_mapIdBase64ToNode.value(id.toBase64(), nullptr);
+    auto iter = globalEngine->_mapIdToNode.find(id);
+    if (iter == end(globalEngine->_mapIdToNode))
+        return nullopt;
+    return *iter->second;
 }
 
 
-NodePrivate & NodePrivate::NodeFromDomElement(const QDomElement & element) {
-    QString idBase64 = element.attribute("id");
-    auto result = NodePrivate::maybeGetFromId(Identity (idBase64));
-    hopefully(result, HERE);
-
-    // we are the implementation, we can do this...
-    return const_cast<NodePrivate &>(*result); 
+unique_ptr<NodePrivate> NodePrivate::create (Tag const & tag) {
+    return unique_ptr<NodePrivate> (
+        new NodePrivate(Identity (QUuid::createUuid()), tag)
+    );
 }
 
 
-Label NodePrivate::LabelFromDomElement(const QDomElement& element) {
-    return Label (element.tagName());
+unique_ptr<NodePrivate> NodePrivate::createText (QString const & data) {
+    return unique_ptr<NodePrivate> (
+        new NodePrivate(Identity (QUuid::createUuid()), data)
+    );
 }
 
 
-unique_ptr<NodePrivate> NodePrivate::create(Tag const & tag) {
-    QUuid uuid = QUuid::createUuid();
-    return unique_ptr<NodePrivate> (new NodePrivate(uuid, tag));
-}
-
-
-unique_ptr<NodePrivate> NodePrivate::createText(QString const & data) {
-    QUuid uuid = QUuid::createUuid();
-    return unique_ptr<NodePrivate> (new NodePrivate(uuid, data));
-}
-
-
-unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree() const {
+unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree () const {
     NodePrivate const & original = *this;
 
     if (not original.hasTag())
@@ -98,7 +90,7 @@ unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree() const {
             if (moreChildren)
                 childOfOriginal = &childOfOriginal->getNextSiblingInLabel(HERE);
         }
-        moreLabels = original.hasLabelAfter(label);
+        moreLabels = original.hasLabelAfter(label, HERE);
         if (moreLabels)
             label = original.getLabelAfter(label, HERE);
     }
@@ -118,98 +110,90 @@ unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree() const {
 // to use in a Qt project was the Qt DOM.
 //
 
-NodePrivate::NodePrivate (methyl::Identity const & id, QString const & data)
+NodePrivate::NodePrivate (methyl::Identity const & id, QString const & text) :
+    _parent (nullptr),
+    _id (id),
+    _tag (),
+    _labelToChildren (),
+    _text (text)
 {
-    _element = globalEngine->_document.createElement("text");
-
-    QString idBase64 = Base64StringFromUuid(id.toUuid());
-    _element.setAttribute("id", idBase64);
 
     {
         QWriteLocker lock (&globalEngine->_mapLock);
 
-        // way to atomic insert and check for non-prior existence?
-        hopefully(not globalEngine->_mapIdBase64ToNode.contains(idBase64), HERE);
-        globalEngine->_mapIdBase64ToNode.insert(idBase64, this);
+        bool wasInserted;
+        std::tie(std::ignore, wasInserted)
+            = globalEngine->_mapIdToNode.insert(std::make_pair(id, this));
+
+        hopefully(wasInserted, HERE);
     }
 
-    _element.setAttribute("text", data);
-
-    chronicle(globalDebugNodeCreate, 
-        "NodePrivate::Node() with methyl::Identity " + idBase64
-        + " and data = " + data,
-        HERE
-    );
+    chronicle(globalDebugNodeCreate, [&](QDebug o) {
+        o << "NodePrivate::Node() with methyl::Identity "
+            << id.toUuid().toString()
+            << " and text = "
+            << text
+            << "\n";
+    }, HERE);
 }
 
 
-NodePrivate::NodePrivate (methyl::Identity const & id, Tag const & tag)
+NodePrivate::NodePrivate (methyl::Identity const & id, Tag const & tag) :
+    _parent (nullptr),
+    _id (id),
+    _tag (tag),
+    _labelToChildren (),
+    _text ()
+
 {
-    QString tagBase64 = tag.toBase64();
-    _element = globalEngine->_document.createElement(tagBase64);
-
-    QString idBase64 = id.toBase64();
-    _element.setAttribute("id", idBase64);
-
     {
         QWriteLocker lock (&globalEngine->_mapLock);
 
-        // way to atomic insert and check for non-prior existence?
-        hopefully(not globalEngine->_mapIdBase64ToNode.contains(idBase64), HERE);
-        globalEngine->_mapIdBase64ToNode.insert(idBase64, this);
+        bool wasInserted;
+        std::tie(std::ignore, wasInserted)
+            = globalEngine->_mapIdToNode.insert(std::make_pair(id, this));
+
+        hopefully(wasInserted, HERE);
     }
 
-    chronicle(globalDebugNodeCreate, 
-        "NodePrivate::Node() with methyl::Identity " + idBase64
-        + " and tag = " + tagBase64,
-        HERE
-    );
+    chronicle(globalDebugNodeCreate, [&](QDebug o) {
+        o << "NodePrivate::Node() with methyl::Identity"
+            << id.toUuid().toString()
+            << "and tag ="
+            << tag.toUrl().toString()
+            << "\n";
+    }, HERE);
 }
 
 
 NodePrivate::~NodePrivate ()
 {
-    QString idBase64 = getId().toBase64();
+    // null out members to help prevent accesses from children during
+    // the destruction process.
+    _tag = nullopt;
+    _text = nullopt;
+    auto labelToChildren = std::move(_labelToChildren);
 
-    if (hasAnyLabels()) {
-        Label label = getFirstLabel(HERE);
-        bool moreLabels = true;
-        while (moreLabels) {
-            Label lastLabel = label;
-            moreLabels = hasLabelAfter(label);
-            if (moreLabels)
-                label = getLabelAfter(label, HERE);
-            while (hasLabel(lastLabel)) {
-                auto result = getFirstChildInLabel(lastLabel, HERE).detach();
-                unique_ptr<NodePrivate> & ownedNode = std::get<0>(result);
-                ownedNode.reset();
-            }
+    for (auto & labelChildren : labelToChildren) {
+        for (auto & child : labelChildren.second) {
+            child->_parent = nullptr;
+            delete child;
         }
     }
 
-    QWriteLocker lock (&globalEngine->_mapLock);
-    hopefully(globalEngine->_mapIdBase64ToNode.remove(idBase64) == 1, HERE);
-}
-
-
-
-//
-// Document and Identity
-//
-
-NodePrivate const & NodePrivate::getDoc() const {
-    return NodeFromDomElement(globalEngine->_document.documentElement());
-}
-
-
-NodePrivate & NodePrivate::getDoc() {
-    NodePrivate const & constRef = *this;
-    return const_cast<NodePrivate &>(constRef.getDoc());
+    // Currently the internal code for translating between Qt DOM elements
+    // and nodes needs to have the entry in _mapIdToNode to work; so the
+    // above tree traversal would not work if we removed the ID from the
+    // table first.
+    {
+        QWriteLocker lock (&globalEngine->_mapLock);
+        hopefully(globalEngine->_mapIdToNode.erase(getId()) == 1, HERE);
+    }
 }
 
 
 methyl::Identity NodePrivate::getId() const {
-    return Identity (_element.attribute("id"));
+    return _id;
 }
 
 
@@ -219,18 +203,13 @@ methyl::Identity NodePrivate::getId() const {
 //
 
 bool NodePrivate::hasParent() const {
-    return not _element.parentNode().isNull();
+    return _parent != nullptr;
 }
 
 
 NodePrivate const & NodePrivate::getParent (codeplace const & cp) const {
     hopefully(hasParent(), cp);
-    const QDomElement parentLabelElement = _element.parentNode().toElement();
-    const QDomElement parentNodeElement =
-        parentLabelElement.parentNode().toElement();
-
-    hopefully(not parentNodeElement.isNull(), HERE);
-    return NodeFromDomElement(parentNodeElement);
+    return *_parent;
 }
 
 
@@ -240,27 +219,82 @@ NodePrivate & NodePrivate::getParent (codeplace const & cp) {
 }
 
 
-Label NodePrivate::getLabelInParent (codeplace const & cp) const {
+NodePrivate::relationship_info NodePrivate::relationshipToParent (
+    codeplace const & cp
+) const
+{
     hopefully(hasParent(), cp);
-    const QDomElement immediateParent =  _element.parentNode().toElement();
-    return LabelFromDomElement(immediateParent);
+    for (auto & labelChildren : _parent->_labelToChildren) {
+        auto iter = std::find(
+            begin(labelChildren.second), end(labelChildren.second), this
+        );
+        if (iter != end(labelChildren.second))
+            return relationship_info (
+                labelChildren.first, labelChildren.second, iter
+            );
+    }
+    throw hopefullyNotReached(HERE);
 }
 
 
+NodePrivate::relationship_info NodePrivate::relationshipToParent (
+    codeplace const & cp
+) {
+    hopefully(hasParent(), cp);
+    for (auto & labelChildren : _parent->_labelToChildren) {
+        auto iter = std::find(
+            begin(labelChildren.second), end(labelChildren.second), this
+        );
+        if (iter != end(labelChildren.second))
+            return relationship_info (
+                labelChildren.first, labelChildren.second, iter
+            );
+    }
+    throw hopefullyNotReached(HERE);
+}
+
+
+
+
+Label NodePrivate::getLabelInParent (codeplace const & cp) const {
+    return relationshipToParent(cp)._labelInParent;
+}
+
+
+NodePrivate const & NodePrivate::getRoot() const {
+    NodePrivate const * current = this;
+    while (current->_parent) {
+        current = _parent->_parent;
+    }
+    return *current;
+}
+
+
+NodePrivate & NodePrivate::getRoot() {
+    NodePrivate const & constRef = *this;
+    return const_cast<NodePrivate &>(constRef.getRoot());
+}
+
+
+
+//
+// Tag and Text Examination
+//
+
 bool NodePrivate::hasTag() const {
-    return _element.tagName() != "text";
+    return _tag != nullopt;
 }
 
 
 Tag NodePrivate::getTag (codeplace const & cp) const {
-    hopefully(_element.tagName() != "text", cp);
-    return Tag (_element.tagName());
+    hopefully(hasTag(), cp);
+    return *_tag;
 }
 
 
 QString NodePrivate::getText (codeplace const & cp) const {
-    hopefully(_element.tagName() == "text", cp);
-    return _element.attribute("text");
+    hopefully(hasText(), cp);
+    return *_text;
 }
 
 
@@ -272,94 +306,36 @@ QString NodePrivate::getText (codeplace const & cp) const {
 // specified by methyl::Label::compare()
 //
 
-tuple<bool, optional<QDomElement>> NodePrivate::maybeGetLabelElementCore (
-    Label const & label,
-    bool createIfNecessary
-) const {
-    QString labelBase64 = label.toBase64();
-    auto & mutableElement = *const_cast<QDomElement *>(&_element);
-
-    QDomNodeList children = _element.childNodes();
-    for (int childIndex = 0; childIndex < children.length(); childIndex++) {
-
-        QDomNode node = children.item(childIndex);
-        QString nodeTypeString = node.nodeName();
-
-        QDomElement labelElement = children.item(childIndex).toElement();
-        hopefully(not labelElement.isNull(), HERE);
-        int cmp = labelElement.tagName().compare(labelBase64);
-        if (cmp == 0) {
-            return make_tuple(false, optional<QDomElement> (labelElement));
-        } else if (cmp < 0) {
-            // tagName less than labelBase64, we need to keep looking
-        } else {
-            // tagName greater than labelBase64, we passed it...
-            if (createIfNecessary) {
-                chronicle(globalDebugNodeLabeling,
-                    "On " + _element.attribute("id") + ", creating label "
-                    + labelBase64 + " BEFORE " + labelElement.tagName(),
-                    HERE);
-
-                QDomElement newLabelElement =
-                    globalEngine->_document.createElement(labelBase64);
-
-                hopefully(newLabelElement == mutableElement.insertBefore(
-                    newLabelElement, labelElement
-                ), HERE);
-                return make_tuple(
-                    true, optional<QDomElement> (newLabelElement)
-                );
-            }
-            return make_tuple(false, nullopt); // null
-        }
-    }
-    if (createIfNecessary) {
-        chronicle(globalDebugNodeLabeling,
-            "On " + _element.attribute("id") + "," +
-            " creating label " + labelBase64 + " AT END ",
-            HERE
-        );
-
-        // we reached the end of the tags and we did not see one that
-        // compared greater than label
-        QDomElement newLabelElement =
-            globalEngine->_document.createElement(labelBase64);
-
-        hopefully(newLabelElement == mutableElement.appendChild(
-                newLabelElement
-            ),
-            HERE
-        );
-        return make_tuple(true, optional<QDomElement> (newLabelElement));
-    }
-    return make_tuple(false, nullopt);
-}
-
-
 bool NodePrivate::hasAnyLabels () const {
-    return _element.hasChildNodes();
+    return !_labelToChildren.empty();
 }
 
 
 bool NodePrivate::hasLabel (Label const & label) const {
-    return static_cast<bool>(maybeGetLabelElement(label));
+    return _labelToChildren.find(label) != end(_labelToChildren);
 }
 
 
 Label NodePrivate::getFirstLabel (codeplace const & cp) const {
     hopefully(hasAnyLabels(), cp);
-    return Label (_element.firstChildElement().tagName());
+    return (*_labelToChildren.begin()).first;
 }
 
 
 Label NodePrivate::getLastLabel (codeplace const & cp) const {
     hopefully(hasAnyLabels(), cp);
-    return Label (_element.lastChildElement().tagName());
+    return (*--_labelToChildren.end()).first;
 }
 
 
-bool NodePrivate::hasLabelAfter (Label const & label) const {
-    return not getLabelElement(label).nextSiblingElement().isNull();
+bool NodePrivate::hasLabelAfter (
+    Label const & label,
+    codeplace const & cp
+) const
+{
+    auto iter = _labelToChildren.find(label);
+    hopefully(iter != end(_labelToChildren), cp);
+    return ++iter != end(_labelToChildren);
 }
 
 
@@ -368,14 +344,20 @@ Label NodePrivate::getLabelAfter (
     codeplace const & cp
 ) const
 {
-    QDomElement labelElement = getLabelElement(label);
-    hopefully(not labelElement.nextSiblingElement().isNull(), cp);
-    return Label (labelElement.nextSiblingElement().tagName());
+    auto iter = _labelToChildren.find(label);
+    hopefully(iter != end(_labelToChildren), cp);
+    hopefully(++iter != end(_labelToChildren), cp);
+    return (*iter).first;
 }
 
 
-bool NodePrivate::hasLabelBefore (Label const & label) const {
-    return not getLabelElement(label).previousSiblingElement().isNull();
+bool NodePrivate::hasLabelBefore (
+    Label const & label,
+    codeplace const & cp
+) const {
+    auto iter = _labelToChildren.find(label);
+    hopefully(iter != end(_labelToChildren), HERE);
+    return iter != begin(_labelToChildren);
 }
 
 
@@ -384,9 +366,10 @@ Label NodePrivate::getLabelBefore (
     codeplace const & cp
 ) const
 {
-    QDomElement labelElement = getLabelElement(label);
-    hopefully(not labelElement.previousSiblingElement().isNull(), cp);
-    return Label (labelElement.previousSiblingElement().tagName());
+    auto iter = _labelToChildren.find(label);
+    hopefully(iter != end(_labelToChildren), cp);
+    hopefully(iter != begin(_labelToChildren), cp);
+    return (*--iter).first;
 }
 
 
@@ -400,11 +383,9 @@ NodePrivate const & NodePrivate::getFirstChildInLabel (
     codeplace const & cp
 ) const
 {
-    QDomElement labelElement = getLabelElement(label);
-    QDomElement childElement = labelElement.firstChildElement();
-    hopefully(not childElement.isNull(), cp);
-    hopefully(childElement.parentNode().parentNode() == _element, HERE);
-    return NodeFromDomElement(childElement);
+    auto iter = _labelToChildren.find(label);
+    hopefully(iter != end(_labelToChildren), cp);
+    return *(*iter).second.front();
 }
 
 
@@ -422,10 +403,9 @@ NodePrivate const & NodePrivate::getLastChildInLabel (
     codeplace const & cp
 ) const
 {
-    QDomElement labelElement = getLabelElement(label);
-    QDomElement childElement = labelElement.lastChildElement();
-    hopefully(not childElement.isNull(), cp);
-    return NodeFromDomElement(childElement);
+    auto iter = _labelToChildren.find(label);
+    hopefully(iter != end(_labelToChildren), cp);
+    return *(*iter).second.back();
 }
 
 
@@ -439,7 +419,9 @@ NodePrivate & NodePrivate::getLastChildInLabel (
 
 
 bool NodePrivate::hasNextSiblingInLabel () const {
-    return not _element.nextSiblingElement().isNull();
+    relationship_info info = relationshipToParent(HERE);
+
+    return (info._iter + 1) != end(info._siblings.get());
 }
 
 
@@ -447,9 +429,9 @@ NodePrivate const & NodePrivate::getNextSiblingInLabel (
     codeplace const & cp
 ) const
 {
-    QDomElement nextElement = _element.nextSiblingElement();
-    hopefully(not nextElement.isNull(), cp);
-    return NodeFromDomElement(nextElement);
+    relationship_info info = relationshipToParent(HERE);
+
+    return *(*++info._iter);
 }
 
 
@@ -462,16 +444,18 @@ NodePrivate & NodePrivate::getNextSiblingInLabel (
 
 
 bool NodePrivate::hasPreviousSiblingInLabel () const {
-    return not _element.previousSiblingElement().isNull();
+    relationship_info info = relationshipToParent(HERE);
+
+    return info._iter != begin(info._siblings.get());
 }
 
 
 NodePrivate const & NodePrivate::getPreviousSiblingInLabel (
     codeplace const & cp
 ) const {
-    QDomElement previousElement = _element.previousSiblingElement();
-    hopefully(not previousElement.isNull(), cp);
-    return NodeFromDomElement(_element.previousSiblingElement());
+    relationship_info info = relationshipToParent(HERE);
+
+    return *(*--info._iter);
 }
 
 
@@ -490,7 +474,7 @@ NodePrivate & NodePrivate::getPreviousSiblingInLabel (
 
 void NodePrivate::setTag(Tag const & tag) {
     hopefully(hasTag(), HERE);
-    _element.setTagName(tag.toBase64());
+    _tag = tag;
 }
 
 
@@ -501,34 +485,26 @@ NodePrivate::insert_result NodePrivate::insertChildAsFirstInLabel (
     hopefully(not newChild->hasParent(), HERE);
     hopefully(hasTag(), HERE);
 
-    bool wasLabelElementCreated;
-    QDomElement labelElement;
-    tie(wasLabelElementCreated, labelElement) =
-        getLabelElementCreateIfNecessary(label);
+    NodePrivate * newChildPtr = newChild.release();
+    newChildPtr->_parent = this;
 
-    auto nextChild = [&] () -> NodePrivate const * {
-        if (wasLabelElementCreated) {
-            hopefully(
-                labelElement.appendChild(newChild->_element)
-                == newChild->_element,
-                HERE
-            );
-            return nullptr;
-        } else {
-            QDomElement nextChildElement = labelElement.firstChildElement();
-            hopefully(newChild->_element == labelElement.insertBefore(
-                newChild->_element, nextChildElement
-                ),
-                HERE
-            );
-            return &NodeFromDomElement(nextChildElement);
-        }
-    } ();
+    auto iter = _labelToChildren.find(label);
 
-    hopefully(labelElement.firstChildElement() == newChild->_element, HERE);
+    if (iter == end(_labelToChildren)) {
+        _labelToChildren.insert(
+            std::make_pair(label, std::vector<NodePrivate *>{newChildPtr})
+        );
+        return insert_result (
+            *newChildPtr,
+            insert_info (nullptr, label, nullptr, nullptr)
+        );
+    }
+
+    NodePrivate * nextChild = (*iter).second.front();
+    (*iter).second.insert(begin((*iter).second), newChildPtr);
 
     return insert_result (
-        *newChild.release(),
+        *newChildPtr,
         insert_info (nullptr, label, nullptr, nextChild)
     );
 }
@@ -541,32 +517,26 @@ NodePrivate::insert_result NodePrivate::insertChildAsLastInLabel (
     hopefully(not newChild->hasParent(), HERE);
     hopefully(hasTag(), HERE);
 
-    bool wasLabelElementCreated;
-    QDomElement labelElement;
-    tie(wasLabelElementCreated, labelElement) =
-        getLabelElementCreateIfNecessary(label);
+    NodePrivate * newChildPtr = newChild.release();
+    newChildPtr->_parent = this;
 
-    auto previousChild = [&] () -> NodePrivate const * {
-        if (wasLabelElementCreated) {
-            hopefully(
-                labelElement.appendChild(newChild->_element) 
-                == newChild->_element,
-                HERE
-            );
-            return nullptr;
-        } else {
-            QDomElement previousChildElement = labelElement.lastChildElement();
-            hopefully(newChild->_element == labelElement.insertAfter(
-                newChild->_element, previousChildElement
-            ), HERE);
-            return &NodeFromDomElement(previousChildElement);
-        }
-    } ();
+    auto iter = _labelToChildren.find(label);
 
-    hopefully(labelElement.lastChildElement() == newChild->_element, HERE);
+    if (iter == end(_labelToChildren)) {
+        _labelToChildren.insert(
+            std::make_pair(label, std::vector<NodePrivate *>{newChildPtr})
+        );
+        return insert_result (
+            *newChildPtr,
+            insert_info (nullptr, label, nullptr, nullptr)
+        );
+    }
+
+    NodePrivate * previousChild = (*iter).second.back();
+    (*iter).second.push_back(newChildPtr);
 
     return insert_result (
-        *newChild.release(),
+        *newChildPtr,
         insert_info (nullptr, label, previousChild, nullptr)
     );
 }
@@ -576,29 +546,26 @@ NodePrivate::insert_result NodePrivate::insertSiblingAfter (
     unique_ptr<NodePrivate> newSibling
 ) {
     hopefully(not newSibling->hasParent(), HERE);
-    NodePrivate & nodeParent = getParent(HERE);
 
-    QDomElement labelElement = nodeParent.getLabelElement(getLabelInParent(HERE));
-    hopefully(newSibling->_element == labelElement.insertAfter(
-        newSibling->_element, _element
-    ), HERE);
+    NodePrivate * newSiblingPtr = newSibling.release();
+    newSiblingPtr->_parent = this->_parent;
 
-    Label labelInParent = LabelFromDomElement(labelElement);
-
-    QDomElement nextChildElement
-        = newSibling->_element.nextSibling().toElement();
+    relationship_info info = relationshipToParent(HERE);
 
     auto nextChild = [&]() -> NodePrivate const * {
-        if (nextChildElement.isNull()) {
+        if (++info._iter == end(info._siblings.get())) {
             return nullptr;
         } else {
-            return &NodeFromDomElement(nextChildElement);
+            return *info._iter;
         }
     }();
 
+    // we've bumped the iterator... so inserting *after* initial iter
+    info._siblings.get().insert(info._iter, newSiblingPtr);
+
     return insert_result (
-        *newSibling.release(),
-        insert_info (&nodeParent, labelInParent, nullptr, nextChild)
+        *newSiblingPtr,
+        insert_info (_parent, info._labelInParent, nullptr, nextChild)
     );
 }
 
@@ -606,30 +573,25 @@ NodePrivate::insert_result NodePrivate::insertSiblingAfter (
 NodePrivate::insert_result NodePrivate::insertSiblingBefore (
     unique_ptr<NodePrivate> newSibling
 ) {
-    hopefully(not newSibling->hasParent(), HERE);
-    NodePrivate & nodeParent = getParent(HERE);
+    NodePrivate * newSiblingPtr = newSibling.release();
+    newSiblingPtr->_parent = this->_parent;
 
-    QDomElement labelElement = nodeParent.getLabelElement(getLabelInParent(HERE));
-    hopefully(newSibling->_element == labelElement.insertBefore(
-        newSibling->_element, _element
-    ), HERE);
-
-    Label labelInParent = LabelFromDomElement(labelElement);
-
-    QDomElement previousChildElement =
-        newSibling->_element.previousSibling().toElement();
+    relationship_info info = relationshipToParent(HERE);
 
     auto previousChild = [&]() -> NodePrivate const * {
-        if (previousChildElement.isNull()) {
+        if (info._iter == begin(info._siblings.get())) {
             return nullptr;
         } else {
-            return &NodeFromDomElement(previousChildElement);
+            return *(--info._iter);
         }
     }();
 
+    // we've bumped the iterator... so inserting *before* initial iter
+    info._siblings.get().insert(info._iter, newSiblingPtr);
+
     return insert_result (
-        *newSibling.release(),
-        insert_info (&nodeParent, labelInParent, previousChild, nullptr)
+        *newSiblingPtr,
+        insert_info (_parent, info._labelInParent, previousChild, nullptr)
     );
 }
 
@@ -637,91 +599,83 @@ NodePrivate::insert_result NodePrivate::insertSiblingBefore (
 auto NodePrivate::detach ()
     -> tuple<unique_ptr<NodePrivate>, NodePrivate::detach_info>
 {
-    auto previousChild = [&] () -> NodePrivate const * {
-        auto previousChildElement = _element.previousSibling().toElement();
-        if (previousChildElement.isNull())
+    hopefully(hasParent(), HERE);
+
+    relationship_info info = relationshipToParent(HERE);
+
+    auto previousChild = [&]() -> NodePrivate const * {
+        if (info._iter == begin(info._siblings.get())) {
             return nullptr;
-        return &NodeFromDomElement(previousChildElement);
-    } ();
+        } else {
+            return *(info._iter - 1);
+        }
+    }();
 
-    auto nextChild = [&] () -> NodePrivate const * {
-        auto nextChildElement = _element.previousSibling().toElement();
-        if (nextChildElement.isNull())
+    auto nextChild = [&]() -> NodePrivate const * {
+        if (info._iter == end(info._siblings.get())) {
             return nullptr;
+        } else {
+            return *(info._iter + 1);
+        }
+    }();
 
-        return &NodeFromDomElement(nextChildElement);
-    } ();
-
-    Label labelInParent = getLabelInParent(HERE);
-    NodePrivate & nodeParent = getParent(HERE);
-    bool removeLabel = false;
-    if (
-        (&nodeParent.getFirstChildInLabel(labelInParent, HERE) == this)
-        and (&nodeParent.getLastChildInLabel(labelInParent, HERE) == this)
-    ) {
-        removeLabel = true;
+    info._siblings.get().erase(info._iter);
+    if (info._siblings.get().empty()) {
+        _parent->_labelToChildren.erase(info._labelInParent);
     }
 
-    QDomElement labelElement
-        = nodeParent.getLabelElement(labelInParent);
-    labelElement.removeChild(_element);
-    if (removeLabel) {
-        nodeParent._element.removeChild(labelElement);
-    }
+    this->_parent = nullptr;
 
     return make_tuple(
         unique_ptr<NodePrivate> (this),
-        detach_info (nodeParent, labelInParent, previousChild, nextChild)
+        detach_info (*_parent, info._labelInParent, previousChild, nextChild)
     );
 }
 
 
 auto NodePrivate::replaceWith (
-    unique_ptr<NodePrivate> nodeReplacement
+    unique_ptr<NodePrivate> replacement
 )
     -> tuple<unique_ptr<NodePrivate>, NodePrivate::detach_info>
 {
-    auto previousChild = [&] () -> NodePrivate const * {
-        auto previousChildElement = _element.previousSibling().toElement();
-        if (previousChildElement.isNull())
+    hopefully(hasParent(), HERE);
+
+    NodePrivate * replacementPtr = replacement.release();
+    replacementPtr->_parent = this->_parent;
+
+    relationship_info info = relationshipToParent(HERE);
+
+    auto previousChild = [&]() -> NodePrivate const * {
+        if (info._iter == begin(info._siblings.get())) {
             return nullptr;
+        } else {
+            return *(info._iter - 1);
+        }
+    }();
 
-        return &NodeFromDomElement(previousChildElement);
-    } ();
-
-    auto nextChild = [&] () -> NodePrivate const * {
-        auto nextChildElement = _element.previousSibling().toElement();
-        if (nextChildElement.isNull())
+    auto nextChild = [&]() -> NodePrivate const * {
+        if (info._iter == end(info._siblings.get())) {
             return nullptr;
+        } else {
+            return *(info._iter + 1);
+        }
+    }();
 
-        return &NodeFromDomElement(nextChildElement);
-    } ();
-
-    hopefully(not nodeReplacement->_element.isNull(), HERE);
-    hopefully(nodeReplacement->_element.parentNode().isNull(), HERE);
-    Label labelInParent = getLabelInParent(HERE);
-    NodePrivate const & nodeParent (getParent(HERE));
-    QDomElement labelElement = nodeParent.getLabelElement(labelInParent);
-    QDomNode oldChild = labelElement.replaceChild(
-        nodeReplacement->_element, _element
-    );
-    hopefully(not oldChild.isNull(), HERE);
-    hopefully(oldChild == _element, HERE);
-
-    nodeReplacement.release();
+    *info._iter = replacementPtr;
+    this->_parent = nullptr;
 
     return make_tuple(
         unique_ptr<NodePrivate> (this),
-        detach_info (nodeParent, labelInParent, previousChild, nextChild)
+        detach_info (*_parent, info._labelInParent, previousChild, nextChild)
     );
 }
 
 
 void NodePrivate::setText (
-    QString const & data
+    QString const & text
 ) {
-    hopefully(_element.tagName() == "text", HERE);
-    _element.setAttribute("text", data);
+    hopefully(hasText(), HERE);
+    _text = text;
 }
 
 

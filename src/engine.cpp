@@ -68,7 +68,7 @@ QString Error::getDescription () const
         result = nameNode->getText(HERE);
         // caused by?  how to present...
     } else {
-        result = QString("Error Code ID: ") + getTag(HERE).toBase64();
+        result = QString("Error Code URI: ") + getTag(HERE).toUrl().toString();
     }
     return result;
 }
@@ -131,9 +131,12 @@ RootNode<Node> Engine::makeNodeWithId (
 
 
 Engine::~Engine () {
+
+    int size = _mapIdToNode.size();
+    hopefully(size == 0, QString::number(size) + "nodes leaked", HERE);
+
     hopefully(globalEngine == this, HERE);
     globalEngine = nullptr;
-    hopefully(_mapIdBase64ToNode.empty(), HERE);
 }
 
 

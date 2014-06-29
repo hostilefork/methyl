@@ -49,9 +49,10 @@ private:
     friend class ::methyl::NodePrivate;
     QDomDocument _document;
     QReadWriteLock _mapLock;
-    QHash<QString, methyl::NodePrivate *> _mapIdBase64ToNode;
+    std::unordered_map<methyl::Identity, methyl::NodePrivate *> _mapIdToNode;
     ContextGetter _contextGetter;
     ObserverGetter _observerGetter;
+    shared_ptr<Observer> _dummyObserver;
 
 private:
     friend class ::methyl::Observer;
