@@ -91,7 +91,7 @@ namespace std {
     // http://stackoverflow.com/a/10734231/211160
 
     template <class T>
-    struct less<methyl::NodeRef<T>>
+    struct less<methyl::Node<T>>
     {
         bool operator()(
             methyl::Identity const & left,

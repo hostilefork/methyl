@@ -22,1134 +22,587 @@
 #ifndef METHYL_NODE_H
 #define METHYL_NODE_H
 
-#include <QUuid>
-#include <QDebug>
-
-#include <unordered_set>
-
-#include "methyl/defs.h"
 #include "methyl/nodeprivate.h"
-#include "methyl/observer.h"
 #include "methyl/context.h"
-#include "methyl/noderef.h"
-#include "methyl/rootnode.h"
-
-// Don't want a dependency on the engine.h file in node.h
-// Have to do some acrobatics to get around that
-// Long term, nodeprivate/observer/context should be hidden
-// as opaque types so clients can be insulated from the details
-
-namespace std {
-
-    // Need this to get std::unordered_set to work on NodeRef
-    // http://stackoverflow.com/questions/8157937/
-
-    template <class T>
-    struct hash<methyl::NodeRef<T>>
-    {
-        size_t operator()(
-            methyl::NodeRef<T> const & nodeRef
-        ) const
-        {
-            return std::hash<methyl::NodePrivate const *>()(
-                &nodeRef.getNode().getNodePrivate()
-            );
-        }
-    };
-
-    // Need this to get std::map to work on NodeRef
-    // http://stackoverflow.com/a/10734231/211160
-
-    template <class T>
-    struct less<methyl::NodeRef<T>>
-    {
-        bool operator()(
-            methyl::NodeRef<T> const & left,
-            methyl::NodeRef<T> const & right
-        ) const
-        {
-            return left.getId() < right.getId();
-        }
-    };
-
-    // Need this to get std::unordered_set to work on RootNode
-    // http://stackoverflow.com/questions/8157937/
-
-    template <class T>
-    struct hash<methyl::RootNode<T>>
-    {
-        size_t operator()(
-            methyl::RootNode<T> const & nodeRef
-        ) const
-        {
-            return std::hash<methyl::NodePrivate const *>()(
-                &nodeRef.getNode().getNodePrivate()
-            );
-        }
-    };
-
-    // Need this to get std::map to work on NodeRef
-    // http://stackoverflow.com/a/10734231/211160
-
-    template <class T>
-    struct less<methyl::RootNode<T>>
-    {
-        bool operator()(
-            methyl::RootNode<T> const & left,
-            methyl::RootNode<T> const & right
-        ) const
-        {
-            return left.getId() < right.getId();
-        }
-    };
-
-}
+#include "methyl/observer.h"
 
 namespace methyl {
 
-// If we are interested in treating the methyl structures as comparable
-// values vs. by pointer identity, we need a special predicate to use
-// in something like an unordered_map... because == compares for identity
-// equality not structural equality.  There is also lowerStructureThan
-// but an ordered map based on methyl nodes would be slow to access.
-// You have to use the structure_hash also because otherwise it would
-// hash miss for comparisons
+//
+// The Node Reference wrapper.  Client code always works with these
+// instead of with a NodePrivate itself, because a Node contains a shared
+// pointer to the context providing permissions and info on the node,
+// and may be abstracted across various implementations.
+//
+
+template <class> struct structure_equal_to;
+
+template <class> struct structure_hash;
+
+
+///
+/// Node for const case, -> returns a const Accessor *
+///
 
 template <class T>
-struct structure_hash<methyl::NodeRef<T>>
-{
-    size_t operator()(
-        methyl::NodeRef<T> const & nodeRef
-    ) const
+class Node<T const> {
+    static_assert(
+        std::is_base_of<Accessor, typename std::remove_const<T>::type>::value,
+        "Node<> may only be parameterized with a class derived from Node"
+    );
+
+private:
+    // Right now it's too labor intensive to forward declare all of Node,
+    // so we just cook up something with the same footprint and make sure
+    // the parameter hasn't added any data members or multiple inheritance
+    class FakeAccessor {
+        NodePrivate * _nodePrivate;
+        shared_ptr<Context> _context;
+        virtual ~FakeAccessor() {}
+    };
+    static_assert(
+        sizeof(T) == sizeof(FakeAccessor),
+        "Classes derived from Accessor must not add any new data members"
+    );
+
+template <class> friend struct ::std::hash;
+template <class> friend struct ::methyl::structure_equal_to;
+template <class> friend struct ::methyl::structure_hash;
+
+protected:
+    // if const, assignment would be ill formed.  But we don't want to
+    // accidentally invoke any non-const methods, as the node pointer we
+    // passed in was const.
+    T _nodeDoNotUseDirectly;
+
+friend class Observer;
+friend class Accessor;
+friend class Engine;
+template <class> friend class Tree;
+template <class> friend class Node;
+
+private:
+    Node () = delete;
+
+private:
+    template <class> friend class Node;
+    T const & accessor() const
+        { return _nodeDoNotUseDirectly; }
+
+private:
+    Node (
+        NodePrivate const * nodePrivate,
+        shared_ptr<Context> const & context
+    ) {
+        _nodeDoNotUseDirectly.setInternalProperties(nodePrivate, context);
+    }
+
+    Node (
+        NodePrivate const & nodePrivate,
+        shared_ptr<Context> const & context
+    )
+        : Node (&nodePrivate, context)
     {
-        // This algorithm is a placeholder, and needs serious improvement.
+    }
+
+    Node (
+        NodePrivate const * nodePrivate,
+        shared_ptr<Context> && context
+    ) {
+        _nodeDoNotUseDirectly.setInternalProperties(nodePrivate, context);
+    }
+
+    Node (
+        NodePrivate const & nodePrivate,
+        shared_ptr<Context> && context
+    )
+        : Node (&nodePrivate, std::move(context))
+    {
+    }
+
+
+
+public:
+
+    // CONSTRUCTION FOR THE NODEREF<T CONST> CASE!
+
+    // Allow implicit casting of Node<U> to Node<T const>
+    // *if* T is a base of U (that includes the case that U is T), and
+    // include the move optimization to avoid shared_ptr copy.  U
+    // may be const or non-const.
+    template <class U>
+    Node (
+        Node<U> const & other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other->getNodePrivate(),
+            other.accessor().context()
+        )
+    {
+    }
+    template <class U>
+    Node (
+        Node<U> && other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other->getNodePrivate(),
+            std::move(other.accessor().context())
+        )
+    {
+    }
+
+
+    // Require EXPLICIT casting of Node<U const> to Node<T const>
+    // *if* T is a *not* a base of U, and
+    // include the move optimization to avoid shared_ptr copy
+    template <class U>
+    explicit Node (
+        Node<U const> const & other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other->getNodePrivate(),
+            other.accessor().context()
+        )
+    {
+    }
+    template <class U>
+    explicit Node (
+        Node<U const> && other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other->getNodePrivate(),
+            std::move(other.accessor().context())
+        )
+    {
+    }
+
+
+    T const * operator->() const {
+        return &accessor();
+    }
+
+    virtual ~Node () {
+    }
+
+public:
+    template <class U>
+    bool operator== (Node<U const> const & other) const {
+        return accessor().getNodePrivate() == other.accessor().getNodePrivate();
+    }
+
+    template <class U>
+    bool operator!= (Node<U const> const & other) const {
+        return accessor().getNodePrivate() != other.accessor().getNodePrivate();
+    }
+
+public:
+    template <class U>
+    Node<T> nonConst(
+        Node<U> const & mutableNeighbor,
+        typename std::enable_if<
+            not std::is_const<U>::value, void *
+        >::type = nullptr
+    ) const {
+        // applies if could have gotten the privileges by walking other's tree
         //
-        // https://github.com/hostilefork/methyl/issues/32
+        // http://blog.hostilefork.com/when-should-one-use-const-cast/
 
-        NodePrivate const & nodePrivate = nodeRef.getNode().getNodePrivate();
-
-        size_t result = 0;
-        int const N = -1; // For now, let's do full equality...
-        int i = 0;
-
-        std::hash<Tag> tagHasher;
-
-        NodePrivate const * current = &nodePrivate;
-        while (current and (i++ < N)) {
-            // Qt will use qHash and not support std::hash until at least 2015
-            // https://bugreports.qt-project.org/browse/QTBUG-33428
-
-            if (current->hasText()) {
-                result ^= qHash(current->getText(HERE));
-            } else {
-                result ^= tagHasher(current->getTag(HERE));
-            }
-            current = current->maybeNextPreorderNodeUnderRoot(nodePrivate);
+        NodePrivate const * thisRoot = &accessor().getNodePrivate();
+        while (thisRoot->hasParent()) {
+            thisRoot = &thisRoot->getParent(HERE);
         }
+        NodePrivate * mutableRoot = &mutableNeighbor.accessor().getNodePrivate();
+        while (mutableRoot->hasParent()) {
+            mutableRoot = &mutableRoot->getParent(HERE);
+        }
+        hopefully(mutableRoot == thisRoot, HERE);
 
-        return result;
+        return Node<T> (
+            const_cast<NodePrivate &>(accessor().getNodePrivate()),
+            accessor().context()
+        );
+    }
+
+public:
+    Tree<T> makeCloneOfSubtree() const {
+        return Tree<T> (
+            std::move(accessor().getNodePrivate().makeCloneOfSubtree()),
+            accessor().context()
+        );
+    }
+
+public:
+    template <class U>
+    bool isSubtreeCongruentTo (Node<U const> const & other) const {
+        return accessor().getNodePrivate().isSubtreeCongruentTo(
+            other.accessor().getNodePrivate()
+        );
+    }
+
+public:
+    static optional<Node<T>> maybeLookupById (Identity const & id) {
+        NodePrivate const * nodePrivate = NodePrivate::maybeGetFromId(id);
+        if (not nodePrivate) {
+            return nullopt;
+        }
+        // If you don't want it to be run as "checked", then just pass in
+        // Accessoras the type you're asking for.  Review a better way of doing
+        // this...
+        return Node<T>::checked(Node<T const> (
+            nodePrivate,
+            Context::contextForLookup()
+        ));
     }
 };
 
-template <class T>
-struct structure_equal_to<methyl::NodeRef<T>>
-{
-    bool operator()(
-        methyl::NodeRef<T> const & left,
-        methyl::NodeRef<T> const & right
-    ) const
-    {
-        return left->sameStructureAs(right);
-    }
-};
-
-template <class T>
-struct structure_hash<methyl::RootNode<T>>
-{
-    size_t operator()(
-        methyl::RootNode<T> const & ownedNode
-    ) const
-    {
-        return structure_hash<methyl::NodeRef<T>>()(ownedNode.get());
-    }
-};
-
-template <class T>
-struct structure_equal_to<methyl::RootNode<T>>
-{
-    bool operator()(
-        methyl::RootNode<T> const & left,
-        methyl::RootNode<T> const & right
-    ) const
-    {
-        return left->sameStructureAs(right.get());
-    }
-};
 
 
-// Same for Engine.  Rename as MethylEngine or similar?
-class Engine;
-class Observer;
+// Node for non-const case, -> returns a non-const Accessor*
+template <class T = Accessor const>
+class Node : public Node<T const> {
 
+friend class Accessor;
+friend class Engine;
+template <class> friend class Tree;
+template <class> friend class Node;
 
-// Node is the base for our proxy classes.  They provide a compound
-// interface to NodePrivate.  If you inherit publicly from it, then your
-// wrapped entity will also offer the NodePrivate interface functions...if you
-// inherit protected then you will only offer your own interface.  Private
-// inheritance is not possible because to do the casting, the templates must
-// be able to tell that your class is a subclass of Node
-
-class Node {
-    template <class> friend struct ::std::hash;
-    template <class> friend struct ::methyl::structure_hash;
-    template <class> friend struct ::methyl::structure_equal_to;
-
-    friend class Engine;
-    friend class Observer;
-
+template <class> friend struct ::std::hash;
+template <class> friend struct ::methyl::structure_equal_to;
+template <class> friend struct ::methyl::structure_hash;
 
 private:
-    // Node instances are not to assume they will always be processing
-    // the same NodePrivate.  But for implementation convenience, the NodeRef
-    // pokes the NodePrivate in before passing on
-    mutable NodePrivate * _nodePrivateDoNotUseDirectly;
-    mutable shared_ptr<Context> _contextDoNotUseDirectly;
-template <class> friend class NodeRef;
-template <class> friend class RootNode;
-
-    // only called by NodeRef.  The reason this is not passed in
-    // the constructor is because it would have to come via
-    // the derived class, we want compiler default constructors
-    void setInternalProperties (
-        NodePrivate * nodePrivate,
-        shared_ptr<Context> const & context
-    ) {
-        _nodePrivateDoNotUseDirectly = nodePrivate;
-        _contextDoNotUseDirectly = context;
+    T & accessor () const {
+        return const_cast<T &>(
+            Node<T const>::_nodeDoNotUseDirectly
+        );
     }
-    // ...
-    void setInternalProperties (
-        NodePrivate * nodePrivate,
-        shared_ptr<Context> && context
-    ) {
-        _nodePrivateDoNotUseDirectly = nodePrivate;
-        _contextDoNotUseDirectly = std::move(context);
-    }
-
-
-    // we know getNodePrivate() will only return a const node which will
-    // restore the constness.  As long as nodePtr is not used
-    // directly in its non-const form by this class, we should
-    // not trigger undefined behavior...
-    void setInternalProperties (
-        NodePrivate const * nodePrivate,
-        shared_ptr<Context> const & context
-    ) const
-    {
-        _nodePrivateDoNotUseDirectly = const_cast<NodePrivate *>(nodePrivate);
-        _contextDoNotUseDirectly = context;
-    }
-    // ...
-    void setInternalProperties (
-        NodePrivate const * nodePrivate,
-        shared_ptr<Context> && context
-    ) const
-    {
-        _nodePrivateDoNotUseDirectly = const_cast<NodePrivate *>(nodePrivate);
-        _contextDoNotUseDirectly = std::move(context);
-    }
-
 
 private:
-    void checkValid() const {
-        if (not _contextDoNotUseDirectly or _contextDoNotUseDirectly->isValid())
-            return;
+    Node () = delete;
 
-        throw hopefullyNotReached(
-            "Invalid Node Context",
-            _contextDoNotUseDirectly->_whereConstructed
+    Node (
+        NodePrivate & node,
+        std::shared_ptr<Context> const & context
+    ) : Node<T const> (
+        node,
+        context
+    ) {
+
+    }
+
+    Node (
+        NodePrivate & node,
+        std::shared_ptr<Context> && context
+    ) : Node<T const> (
+        node,
+        std::move(context)
+    ) {
+
+    }
+
+
+public:
+    // CONSTRUCTION FOR THE NODEREF<T MUTABLE> CASE!
+
+    // Allow implicit casting of Node<U> to Node<T>
+    // *if* T is a base of U (that includes the case that U is T), and
+    // include the move optimization to avoid shared_ptr copy.  U
+    // must be non-const.
+    template <class U>
+    Node (
+        Node<U> const & other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value and not std::is_const<U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other->getNodePrivate(),
+            other->context()
+        )
+    {
+    }
+    template <class U>
+    Node (
+        Node<U> && other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value and not std::is_const<U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other->getNodePrivate(),
+            std::move(other->context())
+        )
+    {
+    }
+
+
+    // Allow implicit casting of Node<U> to Node<T>
+    // *if* T is a base of U (that includes the case that U is T), and
+    // include the move optimization to avoid shared_ptr copy.  Tree
+    // does not allow const-node accessors; no need to check that.
+    template <class U>
+    Node (
+        Tree<U> const & other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other.accessor().getNodePrivate(),
+            other.accessor().context()
+        )
+    {
+    }
+    template <class U>
+    Node (
+        Tree<U> && other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other.accessor().getNodePrivate(),
+            std::move(other.accessor().context())
+        )
+    {
+    }
+
+
+    // Require EXPLICIT casting of Node<U> to Node<T>
+    // *if* T is a *not* a base of U, and
+    // include the move optimization to avoid shared_ptr copy.
+    // U must be non-const
+    template <class U>
+    explicit Node (
+        Node<U> const & other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value and not std::is_const<U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other->getNodePrivate(),
+            other.accessor().context()
+        )
+    {
+    }
+    template <class U>
+    explicit Node (
+        Node<U> && other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value and not std::is_const<U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other->getNodePrivate(),
+            std::move(other.accessor().context())
+        )
+    {
+    }
+
+
+    // Require EXPLICIT casting of Tree<U> to Node<T>
+    // *if* T is a *not* a base of U, and
+    // include the move optimization to avoid shared_ptr copy.
+    // U must be non-const
+    template <class U>
+    explicit Node (
+        Tree<U> const & other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other.getNode().getNodePrivate(),
+            other.getNode().context()
+        )
+    {
+    }
+    template <class U>
+    explicit Node (
+        Tree<U> && other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        Node<T const> (
+            other.getNode().getNodePrivate(),
+            std::move(other.getNode().context())
+        )
+    {
+    }
+
+
+public:
+    T * operator-> () const {
+        return &accessor();
+    }
+
+    virtual ~Node () {
+    }
+
+
+public:
+    // detach from parent
+    Tree<T> detach() {
+
+        auto result = accessor().getNodePrivate().detach();
+
+        unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
+        NodePrivate::detach_info & info = std::get<1>(result);
+
+        Observer::observerInEffect().detach(
+            *detachedNode,
+            info._nodeParent,
+            info._previousChild,
+            info._nextChild,
+            nullptr
         );
-    }
-
-    // Node extraction--for friend internal classes only
-    NodePrivate & getNodePrivate () {
-        checkValid();
-
-        static auto nullNodePrivateCodeplace = HERE;
-        hopefully(_nodePrivateDoNotUseDirectly, nullNodePrivateCodeplace);
-
-        return *_nodePrivateDoNotUseDirectly;
-    }
-
-    NodePrivate const & getNodePrivate () const {
-        checkValid();
-
-        static auto nullNodePrivateCodeplace = HERE;
-        hopefully(_nodePrivateDoNotUseDirectly, nullNodePrivateCodeplace);
-
-        return *_nodePrivateDoNotUseDirectly;
-    }
-
-    NodePrivate * maybeGetNodePrivate () {
-        checkValid();
-        return _nodePrivateDoNotUseDirectly;
-    }
-
-    NodePrivate const * maybeGetNodePrivate () const {
-        checkValid();
-        return _nodePrivateDoNotUseDirectly;
-    }
-
-    shared_ptr<Context> const & getContext () const {
-        // For copying into new nodes
-        return _contextDoNotUseDirectly;
-    }
-
-
-protected:
-    // accessors should not be constructible by anyone but the
-    // NodeRef class (how to guarantee that?)
-    explicit Node () {}
-
-    // We do not use a virtual destructor here, because derived classes are
-    // not supposed to have their own destructors at all--much less should
-    // we bend over to try and dispatch to them if they have.  As a sneaky way
-    // of catching  people who have casually tried to
-    ~Node() noexcept {}
-
-
-protected:
-    // Unfortunately we wind up in accessors and need a NodeRef for the
-    // current node when all we have is a this pointer.  Not a perfect
-    // solution--could use some more thought
-    template <class T>
-    NodeRef<T const> thisNodeAs () const {
-        return NodeRef<T const>(getNodePrivate(), getContext());
-    }
-
-    template <class T>
-    NodeRef<T> thisNodeAs () {
-        return NodeRef<T>(getNodePrivate(), getContext());
-    }
-
-
-public:
-    // read-only accessors
-    NodeRef<Node const> getRoot () const {
-        // Currently there is no specialized observer for seeing the root
-        // of something; even though there's a fast operation for finding
-        // the root in NodePrivate.  So we have to register observation
-        // of every parent link on behalf of the client.
-
-        NodeRef<Node const> current = thisNodeAs<Node>();
-        while (current->hasParent()) {
-            current = current->getParent(HERE);
-        }
-        return current;
-    }
-
-    NodeRef<Node> getRoot () {
-        NodeRef<Node> current = thisNodeAs<Node>();
-        while (current->hasParent()) {
-            current = current->getParent(HERE);
-        }
-        return current;
-    }
-
-
-    // Extract the Identity of this node.
-public:
-    Identity getId () const {
-        return getNodePrivate().getId();
-    }
-
-
-public:
-    // Parent specification
-    bool hasParent () const {
-        bool result = getNodePrivate().hasParent();
-        Observer::observerInEffect().hasParent(result, getNodePrivate());
-        return result;
-    }
-
-    NodeRef<Node const> getParent (codeplace const & cp) const {
-        NodePrivate const & result = getNodePrivate().getParent(cp);
-        Observer::observerInEffect().getParent(result, getNodePrivate());
-        return NodeRef<Node const>(result, getContext());
-    }
-
-    NodeRef<Node> getParent(codeplace const & cp) {
-        NodePrivate & result = getNodePrivate().getParent(cp);
-        Observer::observerInEffect().getParent(result, getNodePrivate());
-        return NodeRef<Node>(result, getContext());
-    }
-
-    template <class T>
-    NodeRef<T const> getParent (codeplace const & cp) const {
-        auto result = NodeRef<T>::checked(getParent(cp));
-        hopefully(result != nullopt, cp);
-        return *result;
-    }
-
-    template <class T>
-    NodeRef<T> getParent (codeplace const & cp) {
-        auto result = NodeRef<T>::checked(getParent(cp));
-        hopefully(result != nullopt, cp);
-        return *result;
-    }
-
-    optional<NodeRef<Node const>> maybeGetParent () const {
-        if (not hasParent())
-            return nullopt;
-        return getParent(HERE);
-    }
-
-    optional<NodeRef<Node>> maybeGetParent () {
-        if (not hasParent())
-            return nullopt;
-        return getParent(HERE);
-    }
-
-    template <class T>
-    optional<NodeRef<T const>> maybeGetParent () const {
-        return NodeRef<T>::checked(maybeGetParent());
-    }
-
-    template <class T>
-    optional<NodeRef<T>> maybeGetParent() {
-        return NodeRef<T>::checked(maybeGetParent());
-    }
-
-    Label getLabelInParent (codeplace const & cp) const {
-        Label result = getLabelInParent(cp);
-
-        Observer::observerInEffect().getLabelInParent(result, getNodePrivate());
-        return result;
-    }
-
-    template <class T>
-    bool hasParentEqualTo (NodeRef<T> possibleParent) const {
-        // should be a finer-grained micro-observation than this
-        optional<NodeRef<Node>> parent = maybeGetParent();
-        if (not parent) {
-            return false;
-        }
-        return *parent == possibleParent;
-
-    }
-
-    bool hasLabelInParentEqualTo (
-        Label const & possibleLabel,
-        codeplace const & cp
-    ) const
-    {
-        // should be a finer-grained observation than this
-        Label labelInParent = getLabelInParent(cp);
-        return labelInParent == possibleLabel;
-    }
-
-    // Is the right term "direct child" or "immediate child"?
-    bool hasImmediateChild (NodeRef<Node const> const & possibleChild) const {
-        // hasParent is a good enough observation if false
-        if (not possibleChild->hasParent())
-            return false;
-
-        // REVIEW: Should have special invalidation, TBD
-
-        NodeRef<Node const> parentOfChild = possibleChild->getParent(HERE);
-        return parentOfChild.getNode().getNodePrivate() == getNodePrivate();
-    }
-
-public:
-    // Tag specification
-    bool hasTag () const {
-        bool result = getNodePrivate().hasTag();
-        Observer::observerInEffect().hasTag(result, getNodePrivate());
-        return result;
-    }
-
-    Tag getTag (codeplace const & cp) const {
-        Tag result = getNodePrivate().getTag(cp);
-        Observer::observerInEffect().getTag(result, getNodePrivate());
-        return result;
-    }
-
-    optional<NodeRef<Node const>> maybeGetTagNode () const {
-        if (not hasTag())
-            return nullopt;
-
-        Tag tag = getTag(HERE);
-
-        optional<Identity> id = tag.maybeGetAsIdentity();
-        if (not id)
-            return nullopt;
-
-        optional<NodePrivate const &> tagNode
-            = NodePrivate::maybeGetFromId(*id);
-
-        if (not tagNode)
-            return nullopt;
-
-        return NodeRef<Node const>(*tagNode, getContext());
-    }
-
-    template <class T>
-    optional<NodeRef<T const>> maybeGetTagNode() const {
-        return NodeRef<T>::checked(maybeGetTagNode());
-    }
-
-    bool hasTagEqualTo (Tag const & possibleTag) const {
-        // should be a finer-grained observation than this
-        if (not hasTag())
-            return false;
-        Tag const tag = getTag(HERE);
-        return tag == possibleTag;
-    }
-
-
-public:
-    // Data accessors - should probably come from a templated lexical cast?
-    bool hasText () const { return getNodePrivate().hasText(); }
-    QString getText(codeplace const & cp) const {
-        QString result = getNodePrivate().getText(cp);
-        Observer::observerInEffect().getText(result, getNodePrivate());
-        return result;
-    }
-
-    bool hasTextEqualTo (QString const & str) const {
-        if (not hasText())
-            return false;
-        return getText(HERE) == str;
-    }
-
-
-public:
-
-    // label enumeration; ordering is not under user control
-    // order is invariant and comes from the label's identity
-
-    bool hasAnyLabels () const {
-        bool result = getNodePrivate().hasAnyLabels();
-        Observer::observerInEffect().hasAnyLabels(result, getNodePrivate());
-        return result;
-    }
-
-    bool hasLabel (Label const & label) const {
-        bool result = getNodePrivate().hasLabel(label);
-        Observer::observerInEffect().hasLabel(result, getNodePrivate(), label);
-        return result;
-    }
-
-    Label getFirstLabel (codeplace const & cp) const {
-        Label result = getNodePrivate().getFirstLabel(cp);
-        Observer::observerInEffect().getFirstLabel(result, getNodePrivate());
-        return result;
-    }
-
-    Label getLastLabel (codeplace const & cp) const {
-        Label result = getNodePrivate().getLastLabel(cp);
-        Observer::observerInEffect().getLastLabel(result, getNodePrivate());
-        return result;
-    }
-
-    bool hasLabelAfter (Label const & label, codeplace const & cp) const {
-        bool result = getNodePrivate().hasLabelAfter(label, cp);
-        Observer::observerInEffect().hasLabelAfter(result, getNodePrivate(), label);
-        return result;
-    }
-
-    Label getLabelAfter (Label const & label, codeplace const & cp) const {
-        Label result = getNodePrivate().getLabelAfter(label, cp);
-        Observer::observerInEffect().getLabelAfter(result, getNodePrivate(), label);
-        return result;
-    }
-
-    optional<Label> maybeGetLabelAfter (Label const & label, codeplace const & cp) const {
-        return getNodePrivate().maybeGetLabelAfter(label, cp);
-    }
-
-    bool hasLabelBefore (Label const & label, codeplace const & cp) const {
-        bool result = getNodePrivate().hasLabelBefore(label, cp);
-        Observer::observerInEffect().hasLabelBefore(result, getNodePrivate(), label);
-        return result;
-    }
-
-    Label getLabelBefore (Label const & label, codeplace const & cp) const {
-        Label result = getNodePrivate().getLabelBefore(label, cp);
-        Observer::observerInEffect().getLabelBefore(result, getNodePrivate(), label);
-        return result;
-    }
-
-    optional<Label> maybeGetLabelBefore (Label const & label, codeplace const & cp) const {
-        return getNodePrivate().maybeGetLabelBefore(label, cp);
-    }
-
-    // node in label enumeration
-public:
-
-    ///
-    /// FirstChildInLabel
-    ///
-
-    NodeRef<Node const> getFirstChildInLabel (
-        Label const & label, codeplace const & cp
-    ) const
-    {
-        auto & result = getNodePrivate().getFirstChildInLabel(label, cp);
-        Observer::observerInEffect().getFirstChildInLabel(result, getNodePrivate(), label);
-        return NodeRef<Node const>(result, getContext());
-    }
-
-    NodeRef<Node> getFirstChildInLabel (
-        Label const & label, codeplace const & cp
-    ) {
-        auto & result = getNodePrivate().getFirstChildInLabel(label, cp);
-        Observer::observerInEffect().getFirstChildInLabel(result, getNodePrivate(), label);
-        return NodeRef<Node>(result, getContext());
-    }
-
-    auto maybeGetFirstChildInLabel (Label const & label) const
-        -> optional<NodeRef<Node const>>
-    {
-        optional<NodeRef<Node const>> result;
-        if (hasLabel(label))
-            result = getFirstChildInLabel(label, HERE);
-        return result;
-    }
-
-    auto maybeGetFirstChildInLabel (Label const & label)
-        -> optional<NodeRef<Node>>
-    {
-        optional<NodeRef<Node>> result;
-        if (hasLabel(label))
-            result = getFirstChildInLabel(label, HERE);
-        return result;
-    }
-
-    template <class T>
-    NodeRef<T const> getFirstChildInLabel (
-        Label const & label,
-        codeplace const & cp
-    ) const
-    {
-        auto result = NodeRef<T>::checked(getFirstChildInLabel(label, cp));
-        hopefully(result != nullopt, cp);
-        return *result;
-    }
-
-    template <class T>
-    NodeRef<T> getFirstChildInLabel (
-        Label const & label,
-        codeplace const & cp
-    ) {
-        auto result = NodeRef<T>::checked(getFirstChildInLabel(label, cp));
-        hopefully(result != nullopt, cp);
-        return *result;
-    }
-
-    template <class T>
-    auto maybeGetFirstChildInLabel (Label const & label) const
-        -> optional<NodeRef<T const>>
-    {
-        return NodeRef<T>::checked(maybeGetFirstChildInLabel(label));
-    }
-
-    template <class T>
-    auto maybeGetFirstChildInLabel (Label const & label)
-        -> optional<NodeRef<T>>
-    {
-        return NodeRef<T>::checked(maybeGetFirstChildInLabel(label));
-    }
-
-
-    ///
-    /// LastChildInLabel
-    ///
-
-    NodeRef<Node const> getLastChildInLabel (
-        Label const & label,
-        codeplace const & cp
-    ) const
-    {
-        auto & result = getNodePrivate().getLastChildInLabel(label, cp);
-        Observer::observerInEffect().getLastChildInLabel(result, getNodePrivate(), label);
-        return NodeRef<Node const>(result, getContext());
-    }
-
-    NodeRef<Node> getLastChildInLabel (
-        Label const & label,
-        codeplace const & cp
-    ) {
-        NodePrivate & result = getNodePrivate().getLastChildInLabel(label, cp);
-        Observer::observerInEffect().getLastChildInLabel(result, getNodePrivate(), label);
-        return NodeRef<Node>(result, getContext());
-    }
-
-    auto maybeGetLastChildInLabel (Label const & label) const
-        -> optional<NodeRef<Node const>>
-    {
-        if (not hasLabel(label))
-            return nullopt;
-        return getLastChildInLabel(label, HERE);
-    }
-
-    auto maybeGetLastChildInLabel (Label const & label)
-        -> optional<NodeRef<Node>>
-    {
-        if (not hasLabel(label))
-            return nullopt;
-        return getLastChildInLabel(label, HERE);
-    }
-
-    template <class T>
-    NodeRef<T const> getLastChildInLabel (
-        Label const & label,
-        codeplace const & cp
-    ) const
-    {
-        return NodeRef<T>::checked(getLastChildInLabel(label, cp));
-    }
-
-    template <class T>
-    NodeRef<T> getLastChildInLabel (
-        Label const & label,
-        codeplace const & cp
-    ) {
-        return NodeRef<T>::checked(getLastChildInLabel(label, cp));
-    }
-
-    template <class T>
-    auto maybeGetLastChildInLabel (Label const & label) const
-        -> optional<NodeRef<T const>>
-    {
-        return NodeRef<T>::checked(maybeGetLastChildInLabel(label));
-    }
-
-    template <class T>
-    auto maybeGetLastChildInLabel (Label const & label)
-        -> optional<NodeRef<T>>
-    {
-        return NodeRef<T>::checked(maybeGetLastChildInLabel(label));
-    }
 
-
-    ///
-    /// NextSiblingInLabel
-    ///
-
-    bool hasNextSiblingInLabel () const {
-        bool result = getNodePrivate().hasNextSiblingInLabel();
-        Observer::observerInEffect().hasNextSiblingInLabel(result, getNodePrivate());
-        return result;
-    }
-
-    NodeRef<Node const> getNextSiblingInLabel (codeplace const & cp) const {
-        NodePrivate const & result = getNodePrivate().getNextSiblingInLabel(cp);
-        Observer::observerInEffect().getNextSiblingInLabel(result, getNodePrivate());
-        return NodeRef<Node const>(result, getContext());
-    }
-
-    NodeRef<Node> getNextSiblingInLabel (codeplace const & cp) {
-        NodePrivate & result = getNodePrivate().getNextSiblingInLabel(cp);
-        Observer::observerInEffect().getNextSiblingInLabel(result, getNodePrivate());
-        return NodeRef<Node>(result, getContext());
-    }
-
-    optional<NodeRef<Node const>> maybeGetNextSiblingInLabel () const {
-        if (not hasNextSiblingInLabel())
-            return nullopt;
-        return getNextSiblingInLabel(HERE);
-    }
-
-    optional<NodeRef<Node>> maybeGetNextSiblingInLabel () {
-        if (not hasNextSiblingInLabel())
-            return nullopt;
-        return getNextSiblingInLabel(HERE);
-    }
-
-
-    template <class T>
-    NodeRef<T const> getNextSiblingInLabel (codeplace const & cp) const {
-        auto result = NodeRef<T>::checked(getNextSiblingInLabel(cp));
-        hopefully(result != nullopt, cp);
-        return *result;
-    }
-
-    template <class T>
-    NodeRef<T> getNextSiblingInLabel (codeplace const & cp) {
-        auto result = NodeRef<T>::checked(getNextSiblingInLabel(cp));
-        hopefully(result != nullopt, cp);
-        return *result;
-    }
-
-    template <class T>
-    auto maybeGetNextSiblingInLabel () const
-        -> optional<NodeRef<T const>>
-    {
-        return NodeRef<T>::checked(maybeGetNextSiblingInLabel());
-    }
-
-    template <class T>
-    auto maybeGetNextSiblingInLabel ()
-        -> optional<NodeRef<T>>
-    {
-        return NodeRef<T>::checked(maybeGetNextSiblingInLabel());
-    }
-
-
-    ///
-    /// PreviousSiblingInLabel
-    ///
-
-    bool hasPreviousSiblingInLabel () const {
-        bool result = getNodePrivate().hasPreviousSiblingInLabel();
-        Observer::observerInEffect().hasPreviousSiblingInLabel(result, getNodePrivate());
-        return result;
-    }
-
-    auto getPreviousSiblingInLabel (codeplace const & cp) const
-        -> NodeRef<Node const>
-    {
-        auto & result = getNodePrivate().getPreviousSiblingInLabel(cp);
-        Observer::observerInEffect().getPreviousSiblingInLabel(result, getNodePrivate());
-        return NodeRef<Node const>(result, getContext());
-    }
-
-    NodeRef<Node> getPreviousSiblingInLabel (codeplace const & cp) {
-        NodePrivate & result = getNodePrivate().getPreviousSiblingInLabel(cp);
-        Observer::observerInEffect().getPreviousSiblingInLabel(result, getNodePrivate());
-        return NodeRef<Node>(result, getContext());
-    }
-
-    optional<NodeRef<Node const>> maybeGetPreviousSiblingInLabel () const {
-        if (not hasPreviousSiblingInLabel())
-            return nullopt;
-        return getPreviousSiblingInLabel(HERE);
-    }
-    optional<NodeRef<Node>> maybeGetPreviousSiblingInLabel () {
-        if (not hasPreviousSiblingInLabel())
-            return nullopt;
-        return getPreviousSiblingInLabel(HERE);
-    }
-
-    template <class T>
-    NodeRef<T const> getPreviousSiblingInLabel (codeplace const & cp) const {
-        auto result = NodeRef<T>::checked(maybeGetPreviousSiblingInLabel());
-        hopefully(result != nullopt, cp);
-        return *result;
-    }
-
-    template <class T>
-    NodeRef<T> getPreviousSiblingInLabel (codeplace const & cp) {
-        auto result = NodeRef<T>::checked(maybeGetPreviousSiblingInLabel());
-        hopefully(result != nullopt, cp);
-        return *result;
-    }
-
-    template <class T>
-    auto maybeGetPreviousSiblingInLabel () const
-        -> optional<NodeRef<T const>>
-    {
-        return NodeRef<T>::checked(maybeGetPreviousSiblingInLabel());
+        return Tree<T> (std::move(detachedNode), accessor().context());
     }
-
-    template <class T>
-    auto maybeGetPreviousSiblingInLabel ()
-        -> optional<NodeRef<T>>
-    {
-        return NodeRef<T>::checked(maybeGetPreviousSiblingInLabel());
-    }
-
-
-    ///
-    /// Child Set Accessors
-    ///
-
-    // special accessor for getting children without counting as an observation
-    // of their order.  (it does count as an observation of the number of
-    // children, obviously).  Implementation lost in a refactoring, add with
-    // other missing micro-observations
-
-    std::unordered_set<NodeRef<Node const>> getChildSetForLabel () const {
-        hopefullyNotReached("Not implemented yet", HERE);
-        return std::unordered_set<NodeRef<Node const>>();
-    }
-
-    std::unordered_set<NodeRef<Node>> getChildSetForLabel () {
-        hopefullyNotReached("Not implemented yet", HERE);
-        return std::unordered_set<NodeRef<Node>>();
-    }
-
-    // structural modifications
-public:
-    void setTag (Tag const & tag) {
-        getNodePrivate().setTag(tag);
-        Observer::observerInEffect().setTag(getNodePrivate(), tag);
-        return;
-    }
-
-public:
-    template <class T>
-    NodeRef<T> insertChildAsFirstInLabel (
-        RootNode<T> newChild,
-        Label const & label
-    ) {
-        tuple<NodePrivate &, NodePrivate::insert_info> result
-            = getNodePrivate().insertChildAsFirstInLabel(
-                std::move(newChild.extractNodePrivate()), label
-            );
 
-        NodePrivate & nodeRef = std::get<0>(result);
+    template <class U>
+    Tree<T> replaceWith(Tree<U> other) {
 
-        NodePrivate::insert_info & info = std::get<1>(result);
-        hopefully(info._previousChild == nullptr, HERE);
+        auto otherPrivateOwned = std::move(other.extractNodePrivate());
+        NodePrivate & otherPrivate = *otherPrivateOwned.get();
 
-        Observer::observerInEffect().insertChildAsFirstInLabel(
-            getNodePrivate(),
-            nodeRef,
-            info._labelInParent,
-            info._nextChild
+        auto result = accessor().getNodePrivate().replaceWith(
+            std::move(otherPrivateOwned)
         );
-        return NodeRef<T> (nodeRef, getContext());
-    }
 
-    template <class T>
-    NodeRef<T> insertChildAsLastInLabel (
-        RootNode<T> newChild,
-        Label const & label
-    ) {
-        NodePrivate const * previousChildInLabel;
-        tuple<NodePrivate &, NodePrivate::insert_info> result
-            = getNodePrivate().insertChildAsLastInLabel(
-                std::move(newChild.extractNodePrivate()), label
-            );
+        unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
+        NodePrivate::detach_info & info = std::get<1>(result);
 
-        NodePrivate & nodeRef = std::get<0>(result);
-
-        NodePrivate::insert_info & info = std::get<1>(result);
-        hopefully(info._nextChild == nullptr, HERE);
-
-        Observer::observerInEffect().insertChildAsLastInLabel(
-            getNodePrivate(),
-            nodeRef,
-            info._labelInParent,
-            info._previousChild
+        Observer::observerInEffect().detach(
+            *detachedNode,
+            info._nodeParent,
+            info._previousChild,
+            info._nextChild,
+            &otherPrivate
         );
-        return NodeRef<T> (nodeRef, getContext());
-    }
 
-    template <class T>
-    NodeRef<T> insertSiblingAfter (
-        RootNode<T> newSibling
-    ) {
-        tuple<NodePrivate &, NodePrivate::insert_info> result =
-            getNodePrivate().insertSiblingAfter(
-                std::move(newSibling.extractNodePrivate())
-            );
-
-        NodePrivate & nodeRef = std::get<0>(result);
-
-        NodePrivate::insert_info & info = std::get<1>(result);
-
-        if (not info._nextChild) {
-            Observer::observerInEffect().insertChildAsLastInLabel(
-                *info._nodeParent,
-                nodeRef,
-                info._labelInParent,
-                &getNodePrivate()
-            );
-        } else {
-            Observer::observerInEffect().insertChildBetween(
-                *info._nodeParent,
-                nodeRef,
-                getNodePrivate(),
-                *info._nextChild
-            );
-        }
-
-        return NodeRef<T> (result, getContext());
-    }
-
-    template <class T>
-    NodeRef<T> insertSiblingBefore (
-        RootNode<T> newSibling
-    ) {
-        tuple<NodePrivate &, NodePrivate::insert_info> result =
-            getNodePrivate().insertSiblingBefore(
-                std::move(newSibling.extractNodePrivate())
-            );
-
-        NodePrivate & nodeRef = std::get<0>(result);
-
-        NodePrivate::insert_info & info = std::get<1>(result);
-
-        if (not info._previousChild) {
-            Observer::observerInEffect().insertChildAsLastInLabel(
-                *info._nodeParent,
-                nodeRef,
-                info._labelInParent,
-                &getNodePrivate()
-            );
-        } else {
-            Observer::observerInEffect().insertChildBetween(
-                *info._nodeParent,
-                nodeRef,
-                *info._previousChild,
-                getNodePrivate()
-            );
-        }
-
-        return NodeRef<T> (nodeRef, getContext());
-    }
-
-    auto detachAnyChildrenInLabel (Label const & label)
-        -> std::vector<RootNode<Node>>
-    {
-        std::vector<RootNode<Node>> children;
-        while (hasLabel(label)) {
-            children.push_back(getFirstChildInLabel(label, HERE).detach());
-        }
-        return children;
-    }
-
-    // data modifications
-    // at one time it mirrored the QString API a little, hoping to add benefit
-    // from an observer pattern like "checked if it was an integer, it wasn't,
-    // then the text changed and it didn't become an integer...so no need to
-    // send an invalidation.
-    // http://doc.trolltech.com/4.5/qstring.html
-    // it's not the worst idea, but premature to put in the API...revisit if
-    // interesting cases show up.  We don't want to introduce data blobs
-public:
-    void setText (QString const & str) {
-        getNodePrivate().setText(str);
-        Observer::observerInEffect().setText(getNodePrivate(), str);
-    }
-
-    void insertCharBeforeIndex (
-        int index,
-        QChar const & ch,
-        codeplace const & cp
-    ) {
-        QString str = getNodePrivate().getText(cp);
-        str.insert(index, ch);
-        getNodePrivate().setText(str);
-        Observer::observerInEffect().setText(getNodePrivate(), str);
-    }
-
-    void insertCharAfterIndex (
-        int index,
-        QChar const & ch,
-        codeplace const & cp
-    ) {
-        QString str = getNodePrivate().getText(cp);
-        str.insert(index + 1, ch);
-        getNodePrivate().setText(str);
-        Observer::observerInEffect().setText(getNodePrivate(), str);
-    }
-
-    void deleteCharAtIndex (int index, codeplace const & cp) {
-        QString str = getNodePrivate().getText(cp);
-        str.remove(index, 1);
-        getNodePrivate().setText(str);
-        Observer::observerInEffect().setText(getNodePrivate(), str);
-    }
-
-public:
-    bool sameStructureAs (NodeRef<Node const> const & other) const
-    {
-        return 0 == getNodePrivate().compare(
-            other.getNode().getNodePrivate()
-        );
-    }
-
-
-    // See remarks above about not being sure if I've picked the absolute right
-    // invariants for -1 vs +1.  This is going to be canon...encoded in file
-    // formats and stuff, it should be gotten right!
-    template <class OtherT>
-    bool lowerStructureRankThan (NodeRef<OtherT const> const & other) const
-    {
-        return -1 == getNodePrivate().compare(
-            other.getNode().getNodePrivate()
-        );
+        return Tree<T> (std::move(detachedNode), accessor().context());
     }
 
     ///
-    /// Downcasting assistance
+    /// Structural checked casting assistance
     ///
-protected:
-    virtual bool check() const {
-        // This checks to the *most derived* structure in the accessor
-        // It will not call base class checks on the structure, you can
-        // do that yourself though in your override.
-        return true;
-    }
+    /// The only way we can call the most derived function is by
+    /// creating an instance of the target accessor class and running
+    /// the test on that.  For chaining we make it easy to take optionals
+    /// It will not cast across branches in the Accessorclass tree; just
+    /// straight up and down cast.
+    ///
+    /// https://github.com/hostilefork/methyl/issues/24
+    ///
 
-};
-
-
-// At the moment, there is a standard label for the name of a node.
-extern const Label globalLabelName;
-
-// We also create a special class to represent a notion of "Emptiness"
-// that can have no tags.  I thought it was a unique enough name that isn't
-// overloaded yet still has meaning.  (Terminal is weird, Terminator is weird,
-// going back to the chemical analogy and calling it "Hydrogen" since it
-// "terminates the change and can no longer bond" is even more bonkers.)
-
-class Emptiness : public methyl::Node {
 public:
-    static RootNode<Emptiness> create() {
-        return RootNode<Emptiness>::createText("");
+    template <class U>
+    static optional<Node<T const>> checked(
+        Node<U const> const & source,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value
+            or std::is_base_of<U, T>::value,
+            void *
+        >::type = nullptr
+    ) {
+        Node<T const> test (source);
+        if (not test->check()) {
+            return nullopt;
+        }
+
+        return test;
     }
 
-    bool check() const override
-    {
-        return hasTextEqualTo("");
+    template <class U>
+    static optional<Node<T const>> checked(
+        optional<Node<U const>> const & source,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value
+            or std::is_base_of<U, T>::value,
+            void *
+        >::type = nullptr
+    ) {
+        if (not source) {
+            return nullopt;
+        }
+
+        Node<T const> test (*source);
+        if (not test->check()) {
+            return nullopt;
+        }
+
+        return test;
+    }
+
+    template <class U>
+    static optional<Node<T>> checked(
+        Node<U> const & source,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value
+            or std::is_base_of<U, T>::value,
+            void *
+        >::type = nullptr
+    ) {
+        Node<T> test (source);
+        if (not test->check()) {
+            return nullopt;
+        }
+
+        return test;
+    }
+
+    template <class U>
+    static optional<Node<T>> checked(
+        optional<Node<U>> const & source,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value
+            or std::is_base_of<U, T>::value,
+            void *
+        >::type = nullptr
+    ) {
+        if (not source) {
+            return nullopt;
+        }
+
+        Node<T> test (*source);
+        if (not test->check()) {
+            return nullopt;
+        }
+
+        return test;
     }
 };
-
-// Error signals in benzene are really just Benzene node trees
-// This means some contexts may choose to place the errors into the document
-// But if an error is returned to the UI, it will render it
-
-extern const Tag globalTagError; // all errors should have this tag.
-extern const Tag globalTagCancellation; // does this need a node too?
-extern const Label globalLabelCausedBy;
-
-class Error : public methyl::Node
-{
-public:
-    static methyl::RootNode<Error> makeCancellation ();
-
-public:
-    bool wasCausedByCancellation () const;
-    QString getDescription () const;
-};
-
 
 // we moc this file, though whether there are any QObjects or not may vary
 // this dummy object suppresses the warning "No relevant classes found" w/moc
-class NODE_no_moc_warning : public QObject { Q_OBJECT };
+class METHYL_NODE_no_moc_warning : public QObject { Q_OBJECT };
 
-} // end namespace methyl
+}
 
-
-// "Any class or struct that has a public default constructor, a public copy
-// constructor, and a public destructor can be registered."
-//
-// Under those rules we can't use Q_DECLARE_METATYPE_1ARG because there is no
-// public default constructor.  Being able to do default construction instead
-// of using optional<NodeRef<T>> would defer to runtime "optional-ness" in
-// the baseline declaration of node references that we wish to avoid.  Hence
-// because they insist, you can only pass optional<NodeRef<T>> as signal or
-// slot parameters.
-
-Q_DECLARE_METATYPE(optional<methyl::NodeRef<methyl::Node const>>)
-Q_DECLARE_METATYPE(optional<methyl::NodeRef<methyl::Node>>)
-
-// Could this be used?  I don't know.  Maybe.  But just use the coercions.
-// Q_DECLARE_METATYPE_TEMPLATE_1ARG(something)
-
-#endif
+#endif // NODEREF_H

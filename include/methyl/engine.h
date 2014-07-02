@@ -23,7 +23,7 @@
 #define METHYL_ENGINE_H
 
 #include "defs.h"
-#include "node.h"
+#include "accessor.h"
 #include "observer.h"
 
 #include <map>
@@ -47,7 +47,6 @@ private:
     // Including scratch documents if they are memory mapped files
 private:
     friend class ::methyl::NodePrivate;
-    QDomDocument _document;
     QReadWriteLock _mapLock;
     std::unordered_map<methyl::Identity, methyl::NodePrivate *> _mapIdToNode;
     ContextGetter _contextGetter;
@@ -75,48 +74,48 @@ public:
     shared_ptr<Context> contextForLookup ();
 
     template <class T>
-    NodeRef<T> contextualNodeRef (
-        NodeRef<T> const & node,
+    Node<T> contextualNodeRef (
+        Node<T> const & node,
         shared_ptr<Context> const & context
     ) {
-        return NodeRef<T> (node.getNode().getNodePrivate(), context);
+        return Node<T> (node.accessor().getNodePrivate(), context);
     }
 
     template <class T>
-    NodeRef<T> contextualNodeRef (
-        NodeRef<T> const & node,
+    Node<T> contextualNodeRef (
+        Node<T> const & node,
         shared_ptr<Context> && context
     ) {
-        return NodeRef<T> (node.getNode().getNodePrivate(), context);
+        return Node<T> (node.accessor().getNodePrivate(), context);
     }
 
     template <class NodeType>
-    optional<NodeRef<NodeType const>> reconstituteNode (
+    optional<Node<NodeType const>> reconstituteNode(
         NodePrivate const * nodePrivate,
         shared_ptr<Context> context
     ) {
         if (not nodePrivate)
             return nullopt;
 
-        return NodeRef<NodeType const> (nodePrivate, context);
+        return Node<NodeType const> (nodePrivate, context);
     }
 
     template <class NodeType>
-    optional<RootNode<NodeType>> reconstituteRootNode (
+    optional<Tree<NodeType>> reconstituteTree (
         NodePrivate * nodePrivateOwned,
         shared_ptr<Context> context
     ) {
         if (not nodePrivateOwned)
             return nullopt;
 
-        return RootNode<NodeType> (
+        return Tree<NodeType> (
             unique_ptr<NodePrivate> (nodePrivateOwned),
             context
         );
     }
 
-    std::pair<NodePrivate const *, shared_ptr<Context>> dissectNode (
-        optional<NodeRef<Node const>> node
+    std::pair<NodePrivate const *, shared_ptr<Context>> dissectNode(
+        optional<Node<Accessor const>> node
     ) {
         if (not node)
             return std::pair<NodePrivate const *, shared_ptr<Context>> (
@@ -124,13 +123,13 @@ public:
             );
 
         return std::pair<NodePrivate const *, shared_ptr<Context>> (
-            &(*node).getNode().getNodePrivate(),
-            (*node).getNode().getContext()
+            &(*node).accessor().getNodePrivate(),
+            (*node).accessor().context()
         );
     }
 
-    std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> dissectRootNode (
-        optional<RootNode<Node>> node
+    std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> dissectTree (
+        optional<Tree<Accessor>> node
     ) {
         if (not node)
             return std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> (
@@ -139,11 +138,11 @@ public:
 
         return std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> (
             (*node).extractNodePrivate(),
-            (*node).getNode().getContext()
+            (*node).accessor().context()
         );
     }
 
-    RootNode<Node> makeNodeWithId (
+    Tree<Accessor> makeNodeWithId (
         methyl::Identity const & id,
         methyl::Tag const & tag,
         optional<QString const &> name

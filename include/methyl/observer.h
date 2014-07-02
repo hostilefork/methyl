@@ -41,9 +41,9 @@ namespace methyl {
 // classes in that header.  Hence we cannot include "node.h".  These
 // forward definitions are in order to  directly into the node.h
 class NodePrivate;
-class Node;
-template <class> class NodeRef;
-template <class> class RootNode;
+class Accessor;
+template <class> class Node;
+template <class> class Tree;
 
 // A goal is to try and get NodePrivate and all privileged operations
 // implemented through the methyl::Engine.  We want to friend this class
@@ -73,8 +73,8 @@ class Observer final : public QObject {
     Q_OBJECT
 
     friend class Engine;
-    template <class> friend class NodeRef;
-    template <class> friend class RootNode;
+    template <class> friend class Node;
+    template <class> friend class Tree;
 
 public:
     // simple list to start, will do more later
@@ -105,12 +105,12 @@ private:
 // REVIEW: http://stackoverflow.com/a/8147326/211160
 private:
     Observer (
-        std::unordered_set<NodeRef<Node const>> const & watchedRoots,
+        std::unordered_set<Node<Accessor const>> const & watchedRoots,
         codeplace const & cp
     );
 
     Observer (
-        NodeRef<Node const> const & watchedRoot,
+        Node<Accessor const> const & watchedRoot,
         codeplace const & cp
     );
 

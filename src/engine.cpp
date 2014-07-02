@@ -32,8 +32,8 @@ methyl::Tag const globalTagError (HERE);
 methyl::Tag const globalTagCancellation (HERE);
 methyl::Label const globalLabelCausedBy (HERE);
 
-methyl::RootNode<Error> Error::makeCancellation() {
-    return methyl::RootNode<Error>::create(globalTagCancellation);
+methyl::Tree<Error> Error::makeCancellation() {
+    return methyl::Tree<Error>::create(globalTagCancellation);
 }
 
 
@@ -98,16 +98,16 @@ Engine::Engine (
     hopefully(globalEngine == nullptr, HERE);
     globalEngine = this;
 
-    std::unordered_set<NodeRef<Node const>> dummyWatchedRoots;
+    std::unordered_set<Node<Accessor const>> dummyWatchedRoots;
     _dummyObserver = Observer::create(dummyWatchedRoots, HERE);
     _dummyObserver->markBlind();
 
-    qRegisterMetaType<optional<NodeRef<Node const>>>(
-        "optional<NodeRef<Node const>>>"
+    qRegisterMetaType<optional<Node<Accessor const>>>(
+        "optional<Node<Accessor const>>>"
     );
 
-    qRegisterMetaType<optional<NodeRef<Node>>>(
-        "optional<NodeRef<Node>>>"
+    qRegisterMetaType<optional<Node<Accessor>>>(
+        "optional<Node<Accessor>>>"
     );
 }
 
@@ -130,12 +130,12 @@ shared_ptr<Context> Engine::contextForLookup() {
 }
 
 
-RootNode<Node> Engine::makeNodeWithId (
+Tree<Accessor> Engine::makeNodeWithId (
     methyl::Identity const & id,
     methyl::Tag const & tag,
     optional<QString const &> name
 ) {
-    auto nodeWithId = RootNode<Node> (
+    auto nodeWithId = Tree<Accessor> (
         // cannot use make_unique here; private constructor
         unique_ptr<NodePrivate> (new NodePrivate (id, tag)),
         Context::contextForCreate()
@@ -143,7 +143,7 @@ RootNode<Node> Engine::makeNodeWithId (
 
     if (name) {
         nodeWithId->insertChildAsFirstInLabel(
-            RootNode<Node>::createText(*name),
+            Tree<Accessor>::createText(*name),
             globalLabelName
         );
     }

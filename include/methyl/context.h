@@ -24,9 +24,9 @@
 
 #include "methyl/observer.h"
 
-// Every NodeRef or RootNode may optionally contain a shared pointer to
+// Every NodeRef or Tree may optionally contain a shared pointer to
 // a Context object.  That Context pointer will be propagated into any
-// Node handles which are navigated to by means of that node.
+// Accessorhandles which are navigated to by means of that node.
 //
 // A derived class from an Context can encode arbitrary information that
 // you may extract using the Methyl Engine.  But there are two other
@@ -46,19 +46,19 @@
 
 namespace methyl {
 
-class Node;
+class Accessor;
 class Engine;
-template<class> class RootNode;
+template<class> class Tree;
 
 class Context {
 
-friend class Node;
+friend class Accessor;
 private:
     codeplace _whereConstructed;
 
 
     //
-    // When a RootNode creation is requested, there is no context to copy from
+    // When a Tree creation is requested, there is no context to copy from
     // (as there is when getting a NodeRef from an existing node).  Since
     // Context is something produced by the methyl client, the Engine has
     // to offer a hook to either make the object (or give a shared pointer
@@ -68,7 +68,7 @@ private:
     // engine is offered through this hook routine implemented in context.cpp
     //
 friend class Engine;
-template<class> friend class RootNode;
+template<class> friend class Tree;
 private:
     static shared_ptr<Context> contextForCreate();
 

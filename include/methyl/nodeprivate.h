@@ -29,10 +29,6 @@
 
 #include <unordered_set>
 
-#include <QDomNode>
-#include <QDomText>
-#include <QDomElement>
-
 namespace methyl {
 
 // The NodePrivate name follows the Qt convention of having the private
@@ -46,7 +42,7 @@ class NodePrivate final {
 
 //////////////////////////////////////////////////////////////////////////////
 //
-// API exposed to Node, RootNode, and NodeRef
+// API exposed to Node, Tree, and NodeRef
 //
 // This is the NodePrivate API.  It is not public to clients of methyl, but
 // it is what the methyl node types build upon.  A NodePrivate is not
@@ -400,7 +396,7 @@ public:
     // The only exposed way to create a NodePrivate is through a static
     // factory method that returns a unique_ptr.
     //
-friend class Node;
+friend class Accessor;
 friend class Engine;
 private:
     NodePrivate () = delete;

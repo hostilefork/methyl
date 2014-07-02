@@ -24,7 +24,7 @@
 
 namespace methyl {
 
-tracked<bool> globalDebugNode (false, HERE);
+tracked<bool> globalDebugAccessor(false, HERE);
 tracked<bool> globalDebugNodeCreate (false, HERE);
 tracked<bool> globalDebugNodeLabeling (false, HERE);
 
@@ -182,7 +182,7 @@ NodePrivate::~NodePrivate ()
     }
 
     // Currently the internal code for translating between Qt DOM elements
-    // and nodes needs to have the entry in _mapIdToNode to work; so the
+    // and nodes needs to have the entry in _mapIdToAccessorto work; so the
     // above tree traversal would not work if we removed the ID from the
     // table first.
     {
@@ -300,7 +300,7 @@ QString NodePrivate::getText (codeplace const & cp) const {
 
 
 //
-// Label-in-Node Enumeration
+// Label-in-AccessorEnumeration
 //
 // Order is not user-controllable.  It is invariant from the ordering
 // specified by methyl::Label::compare()
@@ -375,7 +375,7 @@ Label NodePrivate::getLabelBefore (
 
 
 //
-// Node In Label Enumeration
+// AccessorIn Label Enumeration
 //
 
 NodePrivate const & NodePrivate::getFirstChildInLabel (

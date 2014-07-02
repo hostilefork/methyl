@@ -34,7 +34,7 @@ namespace methyl {
 //
 // Tag
 //
-// Previously a tag was just a Node identity, because it was an important
+// Previously a tag was just a Accessoridentity, because it was an important
 // aspect of the design that nodes be able to point at each other (
 // as a cell in a spreadsheet can use a formula by pointing to another
 // cell address).
@@ -47,7 +47,7 @@ namespace methyl {
 // https://en.wikipedia.org/wiki/Uniform_resource_identifier
 //
 // All Methyl tags may resolve to URIs... even tags which point to Methyl
-// Node IDs, which are effectively UUIDs.  Those currently resolve to
+// AccessorIDs, which are effectively UUIDs.  Those currently resolve to
 // URN URIs as specified in IETF RFC #4122:
 //
 // http://www.ietf.org/rfc/rfc4122.txt

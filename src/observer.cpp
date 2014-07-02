@@ -106,7 +106,7 @@ Observer & Observer::observerInEffect () {
 
 
 Observer::Observer (
-    std::unordered_set<NodeRef<Node const>> const & watchedRoots,
+    std::unordered_set<Node<Accessor const>> const & watchedRoots,
     codeplace const & cp
 ) :
     _map (std::unordered_map<NodePrivate const *, SeenFlags>())
@@ -116,7 +116,7 @@ Observer::Observer (
     for (auto & root : watchedRoots) {
         // Can't call hasParent() here if no Observer is in effect (catch-22)
         // Have to reach underneath and use the NodePrivate function
-        auto & rootPrivate = root.getNode().getNodePrivate();
+        auto & rootPrivate = root.accessor().getNodePrivate();
         hopefully(not rootPrivate.hasParent(), HERE);
         _watchedRoots.insert(&rootPrivate);
     }
@@ -127,10 +127,10 @@ Observer::Observer (
 
 
 Observer::Observer (
-    NodeRef<Node const> const & watchedRoot,
+    Node<Accessor const> const & watchedRoot,
     codeplace const & cp
 ) :
-    Observer (std::unordered_set<NodeRef<Node const>>{watchedRoot}, cp)
+    Observer (std::unordered_set<Node<Accessor const>>{watchedRoot}, cp)
 {
 }
 
@@ -144,6 +144,7 @@ bool Observer::isBlinded() {
     QReadLocker lock (&_mapLock);
     return _map == nullopt;
 }
+
 
 Observer::SeenFlags Observer::getSeenFlags (NodePrivate const & node) const {
     QReadLocker lock (&_mapLock);
@@ -188,13 +189,14 @@ bool Observer::maybeObserved (
 }
 
 
+
 //
 // READ OPERATIONS
 // Record the read as interesting only to the currently effective observer
 //
 
 // node in label enumeration
-void Observer::getFirstChildInLabel(
+void Observer::getFirstChildInLabel (
     NodePrivate const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -208,7 +210,8 @@ void Observer::getFirstChildInLabel(
     // SeenFlags::HasPreviousSiblingInLabel
 }
 
-void Observer::getLastChildInLabel(
+
+void Observer::getLastChildInLabel (
     NodePrivate const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -222,7 +225,8 @@ void Observer::getLastChildInLabel(
     // SeenFlags::HasNextSiblingInLabel
 }
 
-void Observer::hasParent(
+
+void Observer::hasParent (
     bool const & result,
     NodePrivate const & thisNode
 ) {
@@ -230,7 +234,8 @@ void Observer::hasParent(
     addSeenFlags(thisNode, SeenFlags::HasParent, HERE);
 }
 
-void Observer::getParent(
+
+void Observer::getParent (
     NodePrivate const & result,
     NodePrivate const & thisNode
 ) {
@@ -238,7 +243,8 @@ void Observer::getParent(
     addSeenFlags(thisNode, SeenFlags::Parent, HERE);
 }
 
-void Observer::getLabelInParent(
+
+void Observer::getLabelInParent (
     Label const & result,
     NodePrivate const & thisNode
 ) {
@@ -246,7 +252,8 @@ void Observer::getLabelInParent(
     addSeenFlags(thisNode, SeenFlags::LabelInParent, HERE);
 }
 
-void Observer::hasParentEqualTo(
+
+void Observer::hasParentEqualTo (
     bool const & result,
     NodePrivate const & thisNode,
     NodePrivate const & parent
@@ -258,7 +265,8 @@ void Observer::hasParentEqualTo(
     notImplemented("hasParentEqualTo", HERE);
 }
 
-void Observer::hasLabelInParentEqualTo(
+
+void Observer::hasLabelInParentEqualTo (
     bool const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -270,9 +278,11 @@ void Observer::hasLabelInParentEqualTo(
     notImplemented("hasLabelInParentEqualTo", HERE);
 }
 
+
+
 // TAG SPECIFICATION
 
-void Observer::hasTag(
+void Observer::hasTag (
     bool const & result,
     NodePrivate const & thisNode
 ) {
@@ -280,7 +290,8 @@ void Observer::hasTag(
     addSeenFlags(thisNode, SeenFlags::HasTag, HERE);
 }
 
-void Observer::hasTagEqualTo(
+
+void Observer::hasTagEqualTo (
     bool const & result,
     NodePrivate const & thisNode,
     methyl::Tag const & tag
@@ -292,6 +303,7 @@ void Observer::hasTagEqualTo(
     notImplemented("hasTagEqualTo", HERE);
 }
 
+
 void Observer::getTag(
     methyl::Tag const & result,
     NodePrivate const & thisNode
@@ -300,7 +312,8 @@ void Observer::getTag(
     addSeenFlags(thisNode, SeenFlags::Tag, HERE);
 }
 
-void Observer::tryGetTagNode(
+
+void Observer::tryGetTagNode (
     NodePrivate const * result,
     NodePrivate const & thisNode
 ) {
@@ -310,10 +323,12 @@ void Observer::tryGetTagNode(
     notImplemented("tryGetTagNode", HERE);
 }
 
+
+
 // LABEL ENUMERATION
 // no implicit ordering, invariant order from ID
 
-void Observer::hasAnyLabels(
+void Observer::hasAnyLabels (
     bool const & result,
     NodePrivate const & thisNode
 ) {
@@ -322,7 +337,8 @@ void Observer::hasAnyLabels(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::hasLabel(
+
+void Observer::hasLabel (
     bool const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -333,7 +349,8 @@ void Observer::hasLabel(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::getFirstLabel(
+
+void Observer::getFirstLabel (
     Label const & result,
     NodePrivate const & thisNode
 ) {
@@ -342,7 +359,8 @@ void Observer::getFirstLabel(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::getLastLabel(
+
+void Observer::getLastLabel (
     Label const & result,
     NodePrivate const & thisNode
 ) {
@@ -351,7 +369,8 @@ void Observer::getLastLabel(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::hasLabelAfter(
+
+void Observer::hasLabelAfter (
     bool const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -362,7 +381,8 @@ void Observer::hasLabelAfter(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::getLabelAfter(
+
+void Observer::getLabelAfter (
     Label const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -373,7 +393,8 @@ void Observer::getLabelAfter(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::hasLabelBefore(
+
+void Observer::hasLabelBefore (
     bool const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -384,7 +405,8 @@ void Observer::hasLabelBefore(
     // any additions or removals of labels will invalidate
 }
 
-void Observer::getLabelBefore(
+
+void Observer::getLabelBefore (
     Label const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -394,10 +416,12 @@ void Observer::getLabelBefore(
     addSeenFlags(thisNode, SeenFlags::HasLabel, HERE);
     // any additions or removals of labels will invalidate
 }
+
+
 
 // NODE IN LABEL ENUMERATION
 
-void Observer::hasNextSiblingInLabel(
+void Observer::hasNextSiblingInLabel (
     bool const & result,
     NodePrivate const & thisNode
 ) {
@@ -405,7 +429,8 @@ void Observer::hasNextSiblingInLabel(
     addSeenFlags(thisNode, SeenFlags::HasNextSiblingInLabel, HERE);
 }
 
-void Observer::getNextSiblingInLabel(
+
+void Observer::getNextSiblingInLabel (
     NodePrivate const & result,
     NodePrivate const & thisNode
 ) {
@@ -413,7 +438,8 @@ void Observer::getNextSiblingInLabel(
     addSeenFlags(thisNode, SeenFlags::NextSiblingInLabel, HERE);
 }
 
-void Observer::hasPreviousSiblingInLabel(
+
+void Observer::hasPreviousSiblingInLabel (
     bool const & result,
     NodePrivate const & thisNode
 ) {
@@ -421,7 +447,8 @@ void Observer::hasPreviousSiblingInLabel(
     addSeenFlags(thisNode, SeenFlags::HasPreviousSiblingInLabel, HERE);
 }
 
-void Observer::getPreviousSiblingInLabel(
+
+void Observer::getPreviousSiblingInLabel (
     NodePrivate const & result,
     NodePrivate const & thisNode
 ) {
@@ -429,7 +456,8 @@ void Observer::getPreviousSiblingInLabel(
     addSeenFlags(thisNode, SeenFlags::PreviousSiblingInLabel, HERE);
 }
 
-void Observer::getText(
+
+void Observer::getText (
     const QString & result,
     NodePrivate const & thisNode
 ) {
@@ -444,7 +472,7 @@ void Observer::getText(
 // Invalidate any observer which has an interest in this write
 //
 
-void Observer::setTag(
+void Observer::setTag (
     NodePrivate const & thisNode,
     Tag const & tag
 ) {
@@ -461,7 +489,7 @@ void Observer::setTag(
 }
 
 
-void Observer::insertChildAsFirstInLabel(
+void Observer::insertChildAsFirstInLabel (
     NodePrivate const & thisNode,
     NodePrivate const & newChild,
     Label const & label,
@@ -510,7 +538,7 @@ void Observer::insertChildAsFirstInLabel(
     });
 }
 
-void Observer::insertChildAsLastInLabel(
+void Observer::insertChildAsLastInLabel (
     NodePrivate const & thisNode,
     NodePrivate const & newChild,
     Label const & label,
@@ -560,7 +588,8 @@ void Observer::insertChildAsLastInLabel(
     });
 }
 
-void Observer::insertChildBetween(
+
+void Observer::insertChildBetween (
     NodePrivate const & thisNode,
     NodePrivate const & newChild,
     NodePrivate const & previousChild,
@@ -609,7 +638,8 @@ void Observer::insertChildBetween(
     });
 }
 
-void Observer::detach(
+
+void Observer::detach (
     NodePrivate const & thisNode,
     NodePrivate const & parent,
     NodePrivate const * previousChild,
@@ -693,8 +723,8 @@ void Observer::detach(
     });
 }
 
-// data modifications
-void Observer::setText(
+
+void Observer::setText (
     NodePrivate const & thisNode,
     QString const & str
 ) {
@@ -711,6 +741,7 @@ void Observer::setText(
         }
     });
 }
+
 
 Observer::~Observer() {
     QWriteLocker lock (&globalEngine->_observersLock);
