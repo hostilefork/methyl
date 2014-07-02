@@ -82,13 +82,37 @@ namespace std {
             methyl::Tree<T> const & nodeRef
         ) const
         {
-            return std::hash<methyl::NodePrivate const *>()(
-                &nodeRef.accessor().getNodePrivate()
-            );
+            // This algorithm is a placeholder, and needs serious improvement.
+            //
+            // https://github.com/hostilefork/methyl/issues/32
+
+            methyl::NodePrivate const & nodePrivate
+                = nodeRef.accessor().getNodePrivate();
+
+            size_t result = 0;
+            int const N = -1; // For now, let's do full equality...
+            int i = 0;
+
+            std::hash<methyl::Tag> tagHasher;
+
+            methyl::NodePrivate const * current = &nodePrivate;
+            while (current and (i++ < N)) {
+                // Qt will not support std::hash until at least 2015
+                // https://bugreports.qt-project.org/browse/QTBUG-33428
+
+                if (current->hasText()) {
+                    result ^= qHash(current->getText(HERE));
+                } else {
+                    result ^= tagHasher(current->getTag(HERE));
+                }
+                current = current->maybeNextPreorderNodeUnderRoot(nodePrivate);
+            }
+
+            return result;
         }
     };
 
-    // Need this to get std::map to work on NodeRef
+    // Need this to get std::map to work on Tree
     // http://stackoverflow.com/a/10734231/211160
 
     template <class T>
@@ -99,92 +123,13 @@ namespace std {
             methyl::Tree<T> const & right
         ) const
         {
-            return left.getId() < right.getId();
+            return left.get()->lowerStructureThan(right.get());
         }
     };
 
 }
 
 namespace methyl {
-
-// If we are interested in treating the methyl structures as comparable
-// values vs. by pointer identity, we need a special predicate to use
-// in something like an unordered_map... because == compares for identity
-// equality not structural equality.  There is also lowerStructureThan
-// but an ordered map based on methyl nodes would be slow to access.
-// You have to use the structure_hash also because otherwise it would
-// hash miss for comparisons
-
-template <class T>
-struct structure_hash<methyl::Node<T>>
-{
-    size_t operator()(
-        methyl::Node<T> const & nodeRef
-    ) const
-    {
-        // This algorithm is a placeholder, and needs serious improvement.
-        //
-        // https://github.com/hostilefork/methyl/issues/32
-
-        NodePrivate const & nodePrivate = nodeRef.accessor().getNodePrivate();
-
-        size_t result = 0;
-        int const N = -1; // For now, let's do full equality...
-        int i = 0;
-
-        std::hash<Tag> tagHasher;
-
-        NodePrivate const * current = &nodePrivate;
-        while (current and (i++ < N)) {
-            // Qt will use qHash and not support std::hash until at least 2015
-            // https://bugreports.qt-project.org/browse/QTBUG-33428
-
-            if (current->hasText()) {
-                result ^= qHash(current->getText(HERE));
-            } else {
-                result ^= tagHasher(current->getTag(HERE));
-            }
-            current = current->maybeNextPreorderNodeUnderRoot(nodePrivate);
-        }
-
-        return result;
-    }
-};
-
-template <class T>
-struct structure_equal_to<methyl::Node<T>>
-{
-    bool operator()(
-        methyl::Node<T> const & left,
-        methyl::Node<T> const & right
-    ) const
-    {
-        return left->sameStructureAs(right);
-    }
-};
-
-template <class T>
-struct structure_hash<methyl::Tree<T>>
-{
-    size_t operator()(
-        methyl::Tree<T> const & ownedNode
-    ) const
-    {
-        return structure_hash<methyl::Node<T>>()(ownedNode.get());
-    }
-};
-
-template <class T>
-struct structure_equal_to<methyl::Tree<T>>
-{
-    bool operator()(
-        methyl::Tree<T> const & left,
-        methyl::Tree<T> const & right
-    ) const
-    {
-        return left->sameStructureAs(right.get());
-    }
-};
 
 
 // Same for Engine.  Rename as MethylEngine or similar?
@@ -891,7 +836,7 @@ public:
 public:
     template <class T>
     Node<T> insertChildAsFirstInLabel (
-        Tree<T> newChild,
+        Tree<T> && newChild,
         Label const & label
     ) {
         tuple<NodePrivate &, NodePrivate::insert_info> result
@@ -915,7 +860,7 @@ public:
 
     template <class T>
     Node<T> insertChildAsLastInLabel (
-        Tree<T> newChild,
+        Tree<T> && newChild,
         Label const & label
     ) {
         NodePrivate const * previousChildInLabel;
@@ -940,7 +885,7 @@ public:
 
     template <class T>
     Node<T> insertSiblingAfter (
-        Tree<T> newSibling
+        Tree<T> && newSibling
     ) {
         tuple<NodePrivate &, NodePrivate::insert_info> result =
             getNodePrivate().insertSiblingAfter(
@@ -972,7 +917,7 @@ public:
 
     template <class T>
     Node<T> insertSiblingBefore (
-        Tree<T> newSibling
+        Tree<T> && newSibling
     ) {
         tuple<NodePrivate &, NodePrivate::insert_info> result =
             getNodePrivate().insertSiblingBefore(
