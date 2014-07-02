@@ -68,11 +68,29 @@ template <class> friend class Tree;
 template <class> friend class Node;
 
 template <class> friend struct ::std::hash;
-template <class> friend struct ::methyl::structure_equal_to;
-template <class> friend struct ::methyl::structure_hash;
 
-template <class T1, class T2> friend
-bool operator==(Tree<T1> const & x, Tree<T2> const & y);
+public:
+    // We are able to copy Tree trees, so after the copy is complete the
+    // semantic needs to be that those trees are equal.  If you really want to
+    // check to see that the root of the tree is the same node reference, then
+    // you need to use x.get() == y.get().
+
+    template <class U>
+    bool operator== (Tree<U> const & other) const {
+        return (*this)->isSubtreeCongruentTo(other.root());
+    }
+
+    template <class U>
+    bool operator!= (Tree<U> const & other) const {
+        return not (*this)->isSubtreeCongruentTo(other.root());
+    }
+
+    // Need this to get std::map to work on Tree
+    // http://stackoverflow.com/a/10734231/211160
+    template <class U>
+    bool operator< (methyl::Tree<U> const & other) const {
+        return (*this)->lowerStructureThan(other.node());
+    }
 
 private:
     T & accessor() {
@@ -100,16 +118,18 @@ public:
         return accessor().maybeGetNodePrivate() != nullptr;
     }
 
-    Node<T const> get() const {
+    Node<T const> root () const {
         Q_ASSERT(static_cast<bool>(*this));
+        hopefully(not accessor().getNodePrivate().hasParent(), HERE);
         return Node<T const>(
             accessor().getNodePrivate(),
             accessor().context()
         );
     }
 
-    Node<T> get() {
+    Node<T> root () {
         Q_ASSERT(static_cast<bool>(*this));
+        hopefully(not accessor().getNodePrivate().hasParent(), HERE);
         return Node<T>(
             accessor().getNodePrivate(),
             accessor().context()
@@ -320,17 +340,6 @@ public:
         );
     }
 };
-
-
-// We are able to copy Tree trees, so after the copy is complete the
-// semantic needs to be that those trees are equal.  If you really want to
-// check to see that the root of the tree is the same node reference, then
-// you need to use x.get() == y.get().
-
-template <class T1, class T2>
-bool operator== (Tree<T1> const & x, Tree<T2> const & y) {
-    return x.get()->sameStructureAs(y.get());
-}
 
 
 // we moc this file, though whether there are any QObjects or not may vary

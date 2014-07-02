@@ -41,7 +41,7 @@
 
 namespace std {
 
-    // Need this to get std::unordered_set to work on NodeRef
+    // Need this to get std::unordered_set and unordered_map to work on Node
     // http://stackoverflow.com/questions/8157937/
 
     template <class T>
@@ -57,22 +57,7 @@ namespace std {
         }
     };
 
-    // Need this to get std::map to work on NodeRef
-    // http://stackoverflow.com/a/10734231/211160
-
-    template <class T>
-    struct less<methyl::Node<T>>
-    {
-        bool operator()(
-            methyl::Node<T> const & left,
-            methyl::Node<T> const & right
-        ) const
-        {
-            return left.getId() < right.getId();
-        }
-    };
-
-    // Need this to get std::unordered_set to work on Tree
+    // Need this to get std::unordered_set and unordered_map to work on Tree
     // http://stackoverflow.com/questions/8157937/
 
     template <class T>
@@ -111,28 +96,12 @@ namespace std {
             return result;
         }
     };
-
-    // Need this to get std::map to work on Tree
-    // http://stackoverflow.com/a/10734231/211160
-
-    template <class T>
-    struct less<methyl::Tree<T>>
-    {
-        bool operator()(
-            methyl::Tree<T> const & left,
-            methyl::Tree<T> const & right
-        ) const
-        {
-            return left.get()->lowerStructureThan(right.get());
-        }
-    };
-
 }
+
+
 
 namespace methyl {
 
-
-// Same for Engine.  Rename as MethylEngine or similar?
 class Engine;
 class Observer;
 
@@ -146,8 +115,6 @@ class Observer;
 
 class Accessor {
     template <class> friend struct ::std::hash;
-    template <class> friend struct ::methyl::structure_hash;
-    template <class> friend struct ::methyl::structure_equal_to;
 
     friend class Engine;
     friend class Observer;
@@ -1001,7 +968,7 @@ public:
     }
 
 public:
-    bool sameStructureAs (Node<Accessor const> const & other) const
+    bool isSubtreeCongruentTo (Node<Accessor const> const & other) const
     {
         return 0 == getNodePrivate().compare(
             other.accessor().getNodePrivate()

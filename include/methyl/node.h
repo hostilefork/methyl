@@ -35,10 +35,6 @@ namespace methyl {
 // and may be abstracted across various implementations.
 //
 
-template <class> struct structure_equal_to;
-
-template <class> struct structure_hash;
-
 
 ///
 /// Node for const case, -> returns a const Accessor *
@@ -66,8 +62,6 @@ private:
     );
 
 template <class> friend struct ::std::hash;
-template <class> friend struct ::methyl::structure_equal_to;
-template <class> friend struct ::methyl::structure_hash;
 
 protected:
     // if const, assignment would be ill formed.  But we don't want to
@@ -211,6 +205,14 @@ public:
         return accessor().getNodePrivate() != other.accessor().getNodePrivate();
     }
 
+    // Need this to get std::map to work on NodeRef
+    // http://stackoverflow.com/a/10734231/211160
+
+    template <class U>
+    bool operator< (methyl::Node<U> const & other) const {
+        return this->getId() < other.getId();
+    }
+
 public:
     template <class U>
     Node<T> nonConst(
@@ -283,8 +285,6 @@ template <class> friend class Tree;
 template <class> friend class Node;
 
 template <class> friend struct ::std::hash;
-template <class> friend struct ::methyl::structure_equal_to;
-template <class> friend struct ::methyl::structure_hash;
 
 private:
     T & accessor () const {
