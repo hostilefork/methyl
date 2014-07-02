@@ -118,9 +118,71 @@ public:
 
 
 public:
-    // disable copy assignment and default construction
+    // disable default construction.  If you need a RootNode that can be
+    // initialized to no value, then use optional<RootNode<...>> and
+    // start it out at nullopt.
+
     RootNode () = delete;
-    RootNode & operator= (RootNode const &) = delete; 
+
+    // RootNodes are copied and compared as values, though they may copy
+    // large trees.  Be careful and pass by const & or use std::move.
+
+    RootNode & operator= (
+        RootNode const & other
+    ) {
+        if (this == &other) return *this;
+
+        // Reset whatever node we might have been holding onto before.
+        extractNodePrivate().reset();
+
+        // Set internals to the result of duplicating the other's content
+        getNode().setInternalProperties(
+            other.getNode().getNodePrivate().makeCloneOfSubtree().release(),
+            Context::contextForCreate()
+        );
+
+        return *this;
+    }
+
+    template <class U>
+    RootNode & operator= (
+        RootNode<U> const & other
+    ) {
+        static_assert(
+            std::is_base_of<T, U>::value,
+            "Can't do copy-assign of RootNode unless base types compatible"
+        );
+
+        if (this == &other) return *this;
+
+        // Reset whatever node we might have been holding onto before.
+        extractNodePrivate().reset();
+
+        // Set internals to the result of duplicating the other's content
+        getNode().setInternalProperties(
+            other.getNode().getNodePrivate().makeCloneOfSubtree(),
+            Context::contextForCreate()
+        );
+
+        return *this;
+    }
+
+    template <class U>
+    RootNode & operator= (
+        RootNode<U> && other
+    ) {
+        static_assert(
+            std::is_base_of<T, U>::value,
+            "Can't do move-assign of RootNode unless base types compatible"
+        );
+
+        if (this == &other) return *this;
+
+        return RootNode (
+            std::move(other.extractNodePrivate()),
+            std::move(other.getNode().getContext())
+        );
+    }
 
     void operator= (nullptr_t dummy) {
         unique_ptr<NodePrivate> thisNode (extractNodePrivate());
@@ -138,37 +200,76 @@ public:
         return *this;
     }
 
-    // Only allow implicit casts if the accessor is going toward a base
-    template <class U>
+
+    // Templated case won't make up for an implicitly deleted copy constructor
+    // ... have to explicitly make one.
+
     RootNode (
-        RootNode<U> other,
-        typename std::enable_if<
-            std::is_base_of<T, U>::value,
-            void *
-        >::type = nullptr
-    ) noexcept :
+        RootNode const & other
+    ) :
         RootNode (
-            std::move(other.extractNodePrivate()),
-            other.getNode().getContext()
+            other.getNode().getNodePrivate().makeCloneOfSubtree(),
+            Context::contextForCreate()
         )
     {
     }
 
+    // Only allow implicit casts if the accessor is going toward a base
+    template <class U>
+    RootNode (
+        RootNode<U> && other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        RootNode (
+            std::move(other.extractNodePrivate()),
+            std::move(other.getNode().getContext())
+        )
+    {
+    }
+    template <class U>
+    RootNode (
+        RootNode<U> const & other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        RootNode (
+            other.getNode().getNodePrivate().makeCloneOfSubtree(),
+            Context::contextForCreate()
+        )
+    {
+    }
+
+
     template <class U>
     explicit RootNode (
-        RootNode<U> other,
+        RootNode<U> && other,
         typename std::enable_if<
             not std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
     ) noexcept :
-        RootNode (std::move(other.extractNodePrivate()))
+        RootNode (
+            std::move(other.extractNodePrivate()),
+            std::move(other.getNode().getContext())
+        )
     {
     }
-    RootNode (RootNode && other) noexcept :
-        RootNode(
-            std::move(other.extractNodePrivate()),
-            other.getNode().getContext()
+    template <class U>
+    explicit RootNode (
+        RootNode<U> const & other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) noexcept :
+        RootNode (
+            other.getNode().getNodePrivate().makeCloneOfSubtree(),
+            Context::contextForCreate()
         )
     {
     }
@@ -191,7 +292,7 @@ public:
     }
 
     // http://stackoverflow.com/a/15418208/211160
-    virtual ~RootNode () noexcept {
+    virtual ~RootNode () {
         if (static_cast<bool>(*this)) {
             unique_ptr<NodePrivate> nodeToFree = extractNodePrivate();
             nodeToFree.reset();
@@ -205,22 +306,14 @@ public:
     // with Node::createAs<T> before...which can work but is a bit
     // more confusing I think.  Time will tell.
 public:
-    static RootNode<T> create(Tag const & tag) {
-        // REVIEW: New material that is not inserted into the graph should not
-        // require a context, as if it is observed it will be thrown away.
-        // It should only take on an observation group *if* it becomes inserted
-        // somewhere persistently where it might be seen again
+    static RootNode<T> create (Tag const & tag) {
         return RootNode<T>(
             std::move(NodePrivate::create(tag)),
             Context::contextForCreate()
         );
     }
 
-    static RootNode<T> createText(QString const & str) {
-        // REVIEW: New material that is not inserted into the graph should not
-        // require a context, as if it is observed it will be thrown away.
-        // It should only take on an observation group *if* it becomes inserted
-        // somewhere persistently where it might be seen again
+    static RootNode<T> createText (QString const & str) {
         return RootNode<T>(
             std::move(NodePrivate::createText(str)),
             Context::contextForCreate()
@@ -228,15 +321,21 @@ public:
     }
 };
 
+
+// We are able to copy RootNode trees, so after the copy is complete the
+// semantic needs to be that those trees are equal.  If you really want to
+// check to see that the root of the tree is the same node reference, then
+// you need to use x.get() == y.get().
+
+template <class T1, class T2>
+bool operator== (RootNode<T1> const & x, RootNode<T2> const & y) {
+    return x.get()->sameStructureAs(y.get());
+}
+
+
 // we moc this file, though whether there are any QObjects or not may vary
 // this dummy object suppresses the warning "No relevant classes found" w/moc
 class ROOTNODE_no_moc_warning : public QObject { Q_OBJECT };
-
-// Consider other operators
-template <class T1, class T2>
-bool operator==(RootNode<T1> const & x, RootNode<T2> const & y) {
-    return x.get() == y.get();
-}
 
 }
 
