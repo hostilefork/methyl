@@ -68,18 +68,24 @@ public:
         }
     }
 
-    shared_ptr<Observer> observerInEffect () {
-        return _observerGetter();
-    }
+    Observer & observerInEffect ();
 
-    shared_ptr<Context> contextForCreate () {
-        return _contextGetter();
-    }
+    shared_ptr<Context> contextForCreate ();
+
+    shared_ptr<Context> contextForLookup ();
 
     template <class T>
     NodeRef<T> contextualNodeRef (
         NodeRef<T> const & node,
         shared_ptr<Context> const & context
+    ) {
+        return NodeRef<T> (node.getNode().getNodePrivate(), context);
+    }
+
+    template <class T>
+    NodeRef<T> contextualNodeRef (
+        NodeRef<T> const & node,
+        shared_ptr<Context> && context
     ) {
         return NodeRef<T> (node.getNode().getNodePrivate(), context);
     }
@@ -109,7 +115,7 @@ public:
         );
     }
 
-    std::pair<NodePrivate const *, shared_ptr<Context>> dissectNode(
+    std::pair<NodePrivate const *, shared_ptr<Context>> dissectNode (
         optional<NodeRef<Node const>> node
     ) {
         if (not node)
@@ -123,7 +129,7 @@ public:
         );
     }
 
-    std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> dissectRootNode(
+    std::pair<unique_ptr<NodePrivate>, shared_ptr<Context>> dissectRootNode (
         optional<RootNode<Node>> node
     ) {
         if (not node)

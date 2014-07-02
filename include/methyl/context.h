@@ -72,14 +72,11 @@ template<class> friend class RootNode;
 private:
     static shared_ptr<Context> contextForCreate();
 
+    static shared_ptr<Context> contextForLookup();
 
 public:
     Context (codeplace const & whereConstructed)
     {
-    }
-
-    virtual bool isObservedBy (shared_ptr<Observer> observer) const {
-        return true;
     }
 
     virtual bool isValid () const {

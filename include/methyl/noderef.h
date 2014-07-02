@@ -24,6 +24,7 @@
 
 #include "methyl/nodeprivate.h"
 #include "methyl/context.h"
+#include "methyl/observer.h"
 
 namespace methyl {
 
@@ -74,6 +75,7 @@ protected:
     // passed in was const.
     T _nodeDoNotUseDirectly;
 
+friend class Observer;
 friend class Node;
 friend class Engine;
 template <class> friend class RootNode;
@@ -88,35 +90,46 @@ private:
         { return _nodeDoNotUseDirectly; }
 
 private:
-    explicit NodeRef (
-        NodePrivate const & nodePrivate,
-        shared_ptr<Context> context
-    ) {
-        _nodeDoNotUseDirectly.setInternalProperties(&nodePrivate, context);
-    }
-    explicit NodeRef (
+    NodeRef (
         NodePrivate const * nodePrivate,
-        shared_ptr<Context> context
+        shared_ptr<Context> const & context
     ) {
         _nodeDoNotUseDirectly.setInternalProperties(nodePrivate, context);
     }
 
-public:
-    template <class U>
     NodeRef (
-        NodeRef<U const> const & other,
-        typename std::enable_if<
-            std::is_base_of<T, U>::value,
-            void *
-        >::type = nullptr
-    ) :
-        NodeRef<T const> (
-            other->getNodePrivate(),
-            other.getNode().getContext()
-        )
+        NodePrivate const & nodePrivate,
+        shared_ptr<Context> const & context
+    )
+        : NodeRef (&nodePrivate, context)
     {
     }
 
+    NodeRef (
+        NodePrivate const * nodePrivate,
+        shared_ptr<Context> && context
+    ) {
+        _nodeDoNotUseDirectly.setInternalProperties(nodePrivate, context);
+    }
+
+    NodeRef (
+        NodePrivate const & nodePrivate,
+        shared_ptr<Context> && context
+    )
+        : NodeRef (&nodePrivate, std::move(context))
+    {
+    }
+
+
+
+public:
+
+    // CONSTRUCTION FOR THE NODEREF<T CONST> CASE!
+
+    // Allow implicit casting of NodeRef<U> to NodeRef<T const>
+    // *if* T is a base of U (that includes the case that U is T), and
+    // include the move optimization to avoid shared_ptr copy.  U
+    // may be const or non-const.
     template <class U>
     NodeRef (
         NodeRef<U> const & other,
@@ -131,7 +144,25 @@ public:
         )
     {
     }
+    template <class U>
+    NodeRef (
+        NodeRef<U> && other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        NodeRef<T const> (
+            other->getNodePrivate(),
+            std::move(other.getNode().getContext())
+        )
+    {
+    }
 
+
+    // Require EXPLICIT casting of NodeRef<U const> to NodeRef<T const>
+    // *if* T is a *not* a base of U, and
+    // include the move optimization to avoid shared_ptr copy
     template <class U>
     explicit NodeRef (
         NodeRef<U const> const & other,
@@ -146,6 +177,21 @@ public:
         )
     {
     }
+    template <class U>
+    explicit NodeRef (
+        NodeRef<U const> && other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        NodeRef<T const> (
+            other->getNodePrivate(),
+            std::move(other.getNode().getContext())
+        )
+    {
+    }
+
 
     T const * operator->() const {
         return &getNode();
@@ -203,14 +249,14 @@ public:
 
 public:
     template <class U>
-    bool isSubtreeCongruentTo(NodeRef<U const> const & other) const {
+    bool isSubtreeCongruentTo (NodeRef<U const> const & other) const {
         return getNode().getNodePrivate().isSubtreeCongruentTo(
             other.getNode().getNodePrivate()
         );
     }
 
 public:
-    static optional<NodeRef<T>> maybeGetFromId(Identity const & id) {
+    static optional<NodeRef<T>> maybeLookupById (Identity const & id) {
         NodePrivate const * nodePrivate = NodePrivate::maybeGetFromId(id);
         if (not nodePrivate) {
             return nullopt;
@@ -220,7 +266,7 @@ public:
         // this...
         return NodeRef<T>::checked(NodeRef<T const> (
             nodePrivate,
-            make_shared<Context> (Observer::create(HERE))
+            Context::contextForLookup()
         ));
     }
 };
@@ -249,9 +295,10 @@ private:
 
 private:
     NodeRef () = delete;
+
     NodeRef (
         NodePrivate & node,
-        std::shared_ptr<Context> context
+        std::shared_ptr<Context> const & context
     ) : NodeRef<T const> (
         node,
         context
@@ -259,12 +306,29 @@ private:
 
     }
 
+    NodeRef (
+        NodePrivate & node,
+        std::shared_ptr<Context> && context
+    ) : NodeRef<T const> (
+        node,
+        std::move(context)
+    ) {
+
+    }
+
+
 public:
+    // CONSTRUCTION FOR THE NODEREF<T MUTABLE> CASE!
+
+    // Allow implicit casting of NodeRef<U> to NodeRef<T>
+    // *if* T is a base of U (that includes the case that U is T), and
+    // include the move optimization to avoid shared_ptr copy.  U
+    // must be non-const.
     template <class U>
     NodeRef (
         NodeRef<U> const & other,
         typename std::enable_if<
-            std::is_base_of<T, U>::value,
+            std::is_base_of<T, U>::value and not std::is_const<U>::value,
             void *
         >::type = nullptr
     ) :
@@ -274,7 +338,26 @@ public:
         )
     {
     }
+    template <class U>
+    NodeRef (
+        NodeRef<U> && other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value and not std::is_const<U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        NodeRef<T const> (
+            other->getNodePrivate(),
+            std::move(other->getContext())
+        )
+    {
+    }
 
+
+    // Allow implicit casting of NodeRef<U> to NodeRef<T>
+    // *if* T is a base of U (that includes the case that U is T), and
+    // include the move optimization to avoid shared_ptr copy.  RootNode
+    // does not allow const-node accessors; no need to check that.
     template <class U>
     NodeRef (
         RootNode<U> const & other,
@@ -289,12 +372,31 @@ public:
         )
     {
     }
+    template <class U>
+    NodeRef (
+        RootNode<U> && other,
+        typename std::enable_if<
+            std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        NodeRef<T const> (
+            other.getNode().getNodePrivate(),
+            std::move(other.getNode().getContext())
+        )
+    {
+    }
 
+
+    // Require EXPLICIT casting of NodeRef<U> to NodeRef<T>
+    // *if* T is a *not* a base of U, and
+    // include the move optimization to avoid shared_ptr copy.
+    // U must be non-const
     template <class U>
     explicit NodeRef (
         NodeRef<U> const & other,
         typename std::enable_if<
-            not std::is_base_of<T, U>::value,
+            not std::is_base_of<T, U>::value and not std::is_const<U>::value,
             void *
         >::type = nullptr
     ) :
@@ -304,7 +406,26 @@ public:
         )
     {
     }
+    template <class U>
+    explicit NodeRef (
+        NodeRef<U> && other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value and not std::is_const<U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        NodeRef<T const> (
+            other->getNodePrivate(),
+            std::move(other.getNode().getContext())
+        )
+    {
+    }
 
+
+    // Require EXPLICIT casting of RootNode<U> to NodeRef<T>
+    // *if* T is a *not* a base of U, and
+    // include the move optimization to avoid shared_ptr copy.
+    // U must be non-const
     template <class U>
     explicit NodeRef (
         RootNode<U> const & other,
@@ -319,10 +440,30 @@ public:
         )
     {
     }
+    template <class U>
+    explicit NodeRef (
+        RootNode<U> && other,
+        typename std::enable_if<
+            not std::is_base_of<T, U>::value,
+            void *
+        >::type = nullptr
+    ) :
+        NodeRef<T const> (
+            other.getNodeRef().getNodePrivate(),
+            std::move(other.getNodeRef().getContext())
+        )
+    {
+    }
+
 
 public:
-    T * operator-> () const { return &getNode(); }
-    virtual ~NodeRef () { }
+    T * operator-> () const {
+        return &getNode();
+    }
+
+    virtual ~NodeRef () {
+    }
+
 
 public:
     // detach from parent
@@ -333,7 +474,7 @@ public:
         unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
         NodePrivate::detach_info & info = std::get<1>(result);
 
-        Observer::observerInEffect()->detach(
+        Observer::observerInEffect().detach(
             *detachedNode,
             info._nodeParent,
             info._previousChild,
@@ -357,7 +498,7 @@ public:
         unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
         NodePrivate::detach_info & info = std::get<1>(result);
 
-        Observer::observerInEffect()->detach(
+        Observer::observerInEffect().detach(
             *detachedNode,
             info._nodeParent,
             info._previousChild,

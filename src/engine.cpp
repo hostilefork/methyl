@@ -81,8 +81,7 @@ Engine::Engine () :
             return dummy;
         },
         []() -> shared_ptr<Observer> {
-            static shared_ptr<Observer> dummy = Observer::create(HERE, true);
-            return dummy;
+            return nullptr;
         }
     )
 {
@@ -99,6 +98,10 @@ Engine::Engine (
     hopefully(globalEngine == nullptr, HERE);
     globalEngine = this;
 
+    std::unordered_set<NodeRef<Node const>> dummyWatchedRoots;
+    _dummyObserver = Observer::create(dummyWatchedRoots, HERE);
+    _dummyObserver->markBlind();
+
     qRegisterMetaType<optional<NodeRef<Node const>>>(
         "optional<NodeRef<Node const>>>"
     );
@@ -106,6 +109,24 @@ Engine::Engine (
     qRegisterMetaType<optional<NodeRef<Node>>>(
         "optional<NodeRef<Node>>>"
     );
+}
+
+Observer & Engine::observerInEffect () {
+    shared_ptr<Observer> observer = _observerGetter();
+    if (observer)
+        return *observer;
+    return *_dummyObserver;
+}
+
+shared_ptr<Context> Engine::contextForCreate() {
+    // Should these be different?  Parameterized?
+    return _contextGetter();
+}
+
+
+shared_ptr<Context> Engine::contextForLookup() {
+    // Should these be different?  Parameterized?
+    return _contextGetter();
 }
 
 
@@ -131,6 +152,9 @@ RootNode<Node> Engine::makeNodeWithId (
 
 
 Engine::~Engine () {
+    // Have to clean up any engine objects (nodes, observers, etc.) that
+    // we allocated ourself before shutting down...
+    _dummyObserver.reset();
 
     int size = _mapIdToNode.size();
     hopefully(size == 0, QString::number(size) + "nodes leaked", HERE);

@@ -99,23 +99,26 @@ namespace methyl {
 
 tracked<bool> globalDebugObserver (true, HERE);
 
-shared_ptr<Observer> Observer::create (codeplace const & cp, bool blind) {
-    // can't use make_shared when constructor is private
-    return shared_ptr<Observer>(new Observer (cp, blind));
-}
 
-
-shared_ptr<Observer> Observer::observerInEffect () {
+Observer & Observer::observerInEffect () {
     return globalEngine->observerInEffect();
 }
 
 
-Observer::Observer (codeplace const & cp, bool blind)
+Observer::Observer (
+    std::unordered_set<NodeRef<Node const>> const & watchedRoots,
+    codeplace const & cp
+) :
+    _map (std::unordered_map<NodePrivate const *, SeenFlags>())
 {
     Q_UNUSED(cp);
 
-    if (not blind) {
-        _map = std::unordered_map<NodePrivate const *, SeenFlags>();
+    for (auto & root : watchedRoots) {
+        // Can't call hasParent() here if no Observer is in effect (catch-22)
+        // Have to reach underneath and use the NodePrivate function
+        auto & rootPrivate = root.getNode().getNodePrivate();
+        hopefully(not rootPrivate.hasParent(), HERE);
+        _watchedRoots.insert(&rootPrivate);
     }
 
     QWriteLocker lock (&globalEngine->_observersLock);
@@ -123,10 +126,24 @@ Observer::Observer (codeplace const & cp, bool blind)
 }
 
 
+Observer::Observer (
+    NodeRef<Node const> const & watchedRoot,
+    codeplace const & cp
+) :
+    Observer (std::unordered_set<NodeRef<Node const>>{watchedRoot}, cp)
+{
+}
+
+
 //
 // LOOKUP ROUTINES
 // These check the observation map.
 //
+
+bool Observer::isBlinded() {
+    QReadLocker lock (&_mapLock);
+    return _map == nullopt;
+}
 
 Observer::SeenFlags Observer::getSeenFlags (NodePrivate const & node) const {
     QReadLocker lock (&_mapLock);
@@ -146,10 +163,11 @@ void Observer::addSeenFlags (
     codeplace const & cp
 ) {
     Q_UNUSED(cp);
-    if (isBlinded())
-        return;
 
     QWriteLocker lock (&_mapLock);
+
+    if (_map == nullopt)
+        return;
 
     auto it = (*_map).find(&node);
     if (it == (*_map).end()) {

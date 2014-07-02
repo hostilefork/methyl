@@ -23,10 +23,14 @@
 #define METHYL_OBSERVER_H
 
 #include <unordered_map>
+#include <unordered_set>
 #include <type_traits>
 
 #include "hoist/hoist.h"
 #include "methyl/defs.h"
+#include "methyl/identity.h"
+#include "methyl/label.h"
+#include "methyl/tag.h"
 
 namespace methyl {
 
@@ -92,6 +96,7 @@ public:
     };
 
 private:
+    std::unordered_set<NodePrivate const *> _watchedRoots;
     QReadWriteLock mutable _mapLock;
     optional<std::unordered_map<NodePrivate const *, SeenFlags>> _map;
 
@@ -99,14 +104,27 @@ private:
 // protected constructor, make_shared can't call it...
 // REVIEW: http://stackoverflow.com/a/8147326/211160
 private:
-    explicit Observer (codeplace const & cp, bool blind);
-public:
-    static shared_ptr<Observer> create (
-        codeplace const & cp,
-        bool blind = false
+    Observer (
+        std::unordered_set<NodeRef<Node const>> const & watchedRoots,
+        codeplace const & cp
     );
 
-    static shared_ptr<Observer> observerInEffect ();
+    Observer (
+        NodeRef<Node const> const & watchedRoot,
+        codeplace const & cp
+    );
+
+
+public:
+    template <class... Args>
+    static shared_ptr<Observer> create (Args &&... args) {
+        // can't use make_shared when constructor is private
+        return shared_ptr<Observer>(
+            new Observer (std::forward<Args>(args)...)
+        );
+    }
+
+    static Observer & observerInEffect ();
 
 private:
     void markBlind() {
@@ -122,10 +140,7 @@ signals:
     void blinded();
 
 public:
-    bool isBlinded() {
-        QReadLocker lock (&_mapLock);
-        return _map == nullopt;
-    }
+    bool isBlinded();
 
 
 private:

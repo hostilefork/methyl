@@ -4,7 +4,11 @@
 namespace methyl {
 
 shared_ptr<Context> Context::contextForCreate() {
-    return nullptr;
+    return globalEngine->contextForCreate();
+}
+
+shared_ptr<Context> Context::contextForLookup() {
+    return globalEngine->contextForLookup();
 }
 
 } // end namespace methyl
