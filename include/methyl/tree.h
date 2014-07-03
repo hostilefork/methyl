@@ -319,23 +319,22 @@ public:
         }
     }
 
-    // Creation, e.g. Tree<T>::create()
-    // Notice that creation cannot be fit inside the Accessor"accessor"
+    // Notice that creation cannot be fit inside the Accessor
     // because there's no way to automatically couple the right return type
-    // in derived classes, you'd have to pass in a parameter.  I did this
+    // in derived classes.  You'd have to pass in a parameter.  I did this
     // with Node::createAs<T> before...which can work but is a bit
-    // more confusing I think.  Time will tell.
+    // more confusing I think.
 public:
-    static Tree<T> create (Tag const & tag) {
+    static Tree<T> createWithTag (Tag const & tag) {
         return Tree<T>(
-            std::move(NodePrivate::create(tag)),
+            std::move(NodePrivate::createWithTag(tag)),
             Context::create()
         );
     }
 
-    static Tree<T> createText (QString const & str) {
+    static Tree<T> createAsText (QString const & str) {
         return Tree<T>(
-            std::move(NodePrivate::createText(str)),
+            std::move(NodePrivate::createAsText(str)),
             Context::create()
         );
     }

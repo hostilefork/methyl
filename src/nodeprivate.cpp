@@ -44,14 +44,14 @@ optional<NodePrivate const &> NodePrivate::maybeGetFromId (
 }
 
 
-unique_ptr<NodePrivate> NodePrivate::create (Tag const & tag) {
+unique_ptr<NodePrivate> NodePrivate::createWithTag (Tag const & tag) {
     return unique_ptr<NodePrivate> (
         new NodePrivate(Identity (QUuid::createUuid()), tag)
     );
 }
 
 
-unique_ptr<NodePrivate> NodePrivate::createText (QString const & data) {
+unique_ptr<NodePrivate> NodePrivate::createAsText (QString const & data) {
     return unique_ptr<NodePrivate> (
         new NodePrivate(Identity (QUuid::createUuid()), data)
     );
@@ -62,9 +62,9 @@ unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree () const {
     NodePrivate const & original = *this;
 
     if (not original.hasTag())
-        return NodePrivate::createText(original.text(HERE));
+        return NodePrivate::createAsText(original.text(HERE));
 
-    auto clone = NodePrivate::create(original.tag(HERE));
+    auto clone = NodePrivate::createWithTag(original.tag(HERE));
     if (not original.hasAnyLabels())
         return clone;
 

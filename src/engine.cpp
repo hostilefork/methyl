@@ -28,30 +28,58 @@ Label const globalLabelName (HERE);
 //
 // ERROR
 //
-methyl::Tag const globalTagError (HERE);
-methyl::Tag const globalTagCancellation (HERE);
-methyl::Label const globalLabelCausedBy (HERE);
+Tag const globalTagError (HERE);
+Tag const globalTagCancellation (HERE);
+Label const globalLabelCausedBy (HERE);
+Label const globalLabelDescription (HERE);
 
-methyl::Tree<Error> Error::makeCancellation() {
-    return methyl::Tree<Error>::create(globalTagCancellation);
+
+Tree<Error> Error::create (
+    Tree<> && description
+) {
+    auto result = Tree<Error>::createWithTag(globalTagError);
+    result->insertChildAsFirstInLabel(
+        std::move(description), globalLabelDescription
+    );
+    return result;
+}
+
+
+Tree<Error> Error::create (
+    Tree<> && description,
+    Tree<Error> && causedBy
+) {
+    auto result = Tree<Error>::createWithTag(globalTagError);
+    result->insertChildAsFirstInLabel(
+        std::move(description), globalLabelDescription
+    );
+    result->insertChildAsFirstInLabel(
+        std::move(causedBy), globalLabelCausedBy
+    );
+    return result;
+}
+
+
+Tree<Error> Error::makeCancellation() {
+    return Error::create(Tree<>::createWithTag(globalTagCancellation));
 }
 
 
 bool Error::wasCausedByCancellation () const {
-    auto current = make_optional(thisNodeAs<Error const>());
+    auto current = make_optional(thisNodeAs<Error>());
     do {
-        if ((*current)->hasTagEqualTo(globalTagCancellation)) {
+        auto description
+            = (*current)->firstChildInLabel(globalLabelDescription, HERE);
+
+        if (description->hasTagEqualTo(globalTagCancellation)) {
             // should be terminal.  TODO: but what about comments?
-            hopefully(not (*current)->hasAnyLabels(), HERE);
+            hopefully(not description->hasAnyLabels(), HERE);
             return true;
         }
-        if ((*current)->hasLabel(globalLabelCausedBy)) {
-            current = (*current)->firstChildInLabel<Error>(
-                globalLabelCausedBy, HERE
-            );
-        } else {
-            current = nullopt;
-        }
+
+        current = (*current)->maybeFirstChildInLabel<Error>(
+            globalLabelCausedBy
+        );
     } while (current);
     return false;
 }
@@ -59,17 +87,23 @@ bool Error::wasCausedByCancellation () const {
 
 QString Error::getDescription () const
 {
-    QString result;
-    auto tagNode = maybeLookupTagNode();
-    if (tagNode and (*tagNode)->hasLabel(methyl::globalLabelName)) {
-        auto nameNode = (*tagNode)->firstChildInLabel(
-            methyl::globalLabelName, HERE
-        );
-        result = nameNode->text(HERE);
-        // caused by?  how to present...
-    } else {
-        result = QString("Error Code URI: ") + tag(HERE).toUrl().toString();
+    // Nothing fancy yet.  URL of each error in the causedBy chain.
+
+    auto current = make_optional(thisNodeAs<Error>());
+    auto description
+        = (*current)->firstChildInLabel(globalLabelDescription, HERE);
+
+    QString result = QString("Error: ")
+        + (*current)->tag(HERE).toUrl().toString();
+
+    auto causedBy = (*current)->maybeFirstChildInLabel<Error>(
+        globalLabelCausedBy
+    );
+
+    if (causedBy) {
+        return result + " caused by " + (*causedBy)->getDescription();
     }
+
     return result;
 }
 
@@ -143,7 +177,7 @@ Tree<Accessor> Engine::makeNodeWithId (
 
     if (name) {
         nodeWithId->insertChildAsFirstInLabel(
-            Tree<Accessor>::createText(*name),
+            Tree<Accessor>::createAsText(*name),
             globalLabelName
         );
     }

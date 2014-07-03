@@ -68,9 +68,9 @@ public:
     // NodeIdentity and Creation
     //
 public:
-    static unique_ptr<NodePrivate> create (Tag const & tag);
+    static unique_ptr<NodePrivate> createWithTag (Tag const & tag);
 
-    static unique_ptr<NodePrivate> createText (QString const & data);
+    static unique_ptr<NodePrivate> createAsText (QString const & data);
 
     unique_ptr<NodePrivate> makeCloneOfSubtree () const;
 

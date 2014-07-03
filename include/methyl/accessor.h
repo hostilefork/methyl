@@ -1024,7 +1024,7 @@ extern const Label globalLabelName;
 class Emptiness : public methyl::Accessor {
 public:
     static Tree<Emptiness> create() {
-        return Tree<Emptiness>::createText("");
+        return Tree<Emptiness>::createAsText("");
     }
 
     bool check() const override
@@ -1033,18 +1033,39 @@ public:
     }
 };
 
-// Error signals in benzene are really just Benzene node trees
-// This means some contexts may choose to place the errors into the document
+// Errors are a common enough need that they were abstracted out of Benzene
+// to be formalized in Methyl.  The goal is to make an error abstraction which
+// can be plugged into documents or passed around in the interface and shown
+// in dialog boxes or status bars.
+//
+// It's important to be able to recognize quickly from an error's root it
+// is an error, so a common tag is used for that.
+//
+// Some contexts may choose to place the errors into the document
 // But if an error is returned to the UI, it will render it
 
 extern const Tag globalTagError; // all errors should have this tag.
 extern const Tag globalTagCancellation; // does this need a node too?
 extern const Label globalLabelCausedBy;
+extern const Label globalLabelDescription;
 
 class Error : public methyl::Accessor
 {
 public:
+    static methyl::Tree<Error> create (
+        methyl::Tree<> && description
+    );
+
+    static methyl::Tree<Error> create (
+        methyl::Tree<> && description,
+        methyl::Tree<Error> && causedBy
+    );
+
     static methyl::Tree<Error> makeCancellation ();
+
+    bool check() const override {
+        return hasTagEqualTo(globalTagError);
+    }
 
 public:
     bool wasCausedByCancellation () const;
