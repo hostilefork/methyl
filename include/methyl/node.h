@@ -133,7 +133,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other->getNodePrivate(),
+            other->nodePrivate(),
             other.accessor().context()
         )
     {
@@ -147,7 +147,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other->getNodePrivate(),
+            other->nodePrivate(),
             std::move(other.accessor().context())
         )
     {
@@ -166,7 +166,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other->getNodePrivate(),
+            other->nodePrivate(),
             other.accessor().context()
         )
     {
@@ -180,7 +180,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other->getNodePrivate(),
+            other->nodePrivate(),
             std::move(other.accessor().context())
         )
     {
@@ -197,12 +197,12 @@ public:
 public:
     template <class U>
     bool operator== (Node<U const> const & other) const {
-        return accessor().getNodePrivate() == other.accessor().getNodePrivate();
+        return accessor().nodePrivate() == other.accessor().nodePrivate();
     }
 
     template <class U>
     bool operator!= (Node<U const> const & other) const {
-        return accessor().getNodePrivate() != other.accessor().getNodePrivate();
+        return accessor().nodePrivate() != other.accessor().nodePrivate();
     }
 
     // Need this to get std::map to work on NodeRef
@@ -210,7 +210,7 @@ public:
 
     template <class U>
     bool operator< (methyl::Node<U> const & other) const {
-        return this->getId() < other.getId();
+        return this->identity() < other.identity();
     }
 
 public:
@@ -225,18 +225,18 @@ public:
         //
         // http://blog.hostilefork.com/when-should-one-use-const-cast/
 
-        NodePrivate const * thisRoot = &accessor().getNodePrivate();
+        NodePrivate const * thisRoot = &accessor().nodePrivate();
         while (thisRoot->hasParent()) {
-            thisRoot = &thisRoot->getParent(HERE);
+            thisRoot = &thisRoot->parent(HERE);
         }
-        NodePrivate * mutableRoot = &mutableNeighbor.accessor().getNodePrivate();
+        NodePrivate * mutableRoot = &mutableNeighbor.accessor().nodePrivate();
         while (mutableRoot->hasParent()) {
-            mutableRoot = &mutableRoot->getParent(HERE);
+            mutableRoot = &mutableRoot->parent(HERE);
         }
         hopefully(mutableRoot == thisRoot, HERE);
 
         return Node<T> (
-            const_cast<NodePrivate &>(accessor().getNodePrivate()),
+            const_cast<NodePrivate &>(accessor().nodePrivate()),
             accessor().context()
         );
     }
@@ -244,7 +244,7 @@ public:
 public:
     Tree<T> makeCloneOfSubtree() const {
         return Tree<T> (
-            std::move(accessor().getNodePrivate().makeCloneOfSubtree()),
+            std::move(accessor().nodePrivate().makeCloneOfSubtree()),
             accessor().context()
         );
     }
@@ -252,8 +252,8 @@ public:
 public:
     template <class U>
     bool isSubtreeCongruentTo (Node<U const> const & other) const {
-        return accessor().getNodePrivate().isSubtreeCongruentTo(
-            other.accessor().getNodePrivate()
+        return accessor().nodePrivate().isSubtreeCongruentTo(
+            other.accessor().nodePrivate()
         );
     }
 
@@ -267,8 +267,7 @@ public:
         // Accessoras the type you're asking for.  Review a better way of doing
         // this...
         return Node<T>::checked(Node<T const> (
-            nodePrivate,
-            Context::contextForLookup()
+            nodePrivate, Context::lookup()
         ));
     }
 };
@@ -333,7 +332,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other->getNodePrivate(),
+            other->nodePrivate(),
             other->context()
         )
     {
@@ -347,7 +346,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other->getNodePrivate(),
+            other->nodePrivate(),
             std::move(other->context())
         )
     {
@@ -367,7 +366,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other.accessor().getNodePrivate(),
+            other.accessor().nodePrivate(),
             other.accessor().context()
         )
     {
@@ -381,7 +380,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other.accessor().getNodePrivate(),
+            other.accessor().nodePrivate(),
             std::move(other.accessor().context())
         )
     {
@@ -401,7 +400,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other->getNodePrivate(),
+            other->nodePrivate(),
             other.accessor().context()
         )
     {
@@ -415,7 +414,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other->getNodePrivate(),
+            other->nodePrivate(),
             std::move(other.accessor().context())
         )
     {
@@ -435,7 +434,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other.getNode().getNodePrivate(),
+            other.getNode().nodePrivate(),
             other.getNode().context()
         )
     {
@@ -449,7 +448,7 @@ public:
         >::type = nullptr
     ) :
         Node<T const> (
-            other.getNode().getNodePrivate(),
+            other.getNode().nodePrivate(),
             std::move(other.getNode().context())
         )
     {
@@ -469,12 +468,12 @@ public:
     // detach from parent
     Tree<T> detach() {
 
-        auto result = accessor().getNodePrivate().detach();
+        auto result = accessor().nodePrivate().detach();
 
         unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
         NodePrivate::detach_info & info = std::get<1>(result);
 
-        Observer::observerInEffect().detach(
+        Observer::current().detach(
             *detachedNode,
             info._nodeParent,
             info._previousChild,
@@ -491,14 +490,14 @@ public:
         auto otherPrivateOwned = std::move(other.extractNodePrivate());
         NodePrivate & otherPrivate = *otherPrivateOwned.get();
 
-        auto result = accessor().getNodePrivate().replaceWith(
+        auto result = accessor().nodePrivate().replaceWith(
             std::move(otherPrivateOwned)
         );
 
         unique_ptr<NodePrivate> & detachedNode = std::get<0>(result);
         NodePrivate::detach_info & info = std::get<1>(result);
 
-        Observer::observerInEffect().detach(
+        Observer::current().detach(
             *detachedNode,
             info._nodeParent,
             info._previousChild,

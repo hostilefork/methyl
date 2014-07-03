@@ -124,7 +124,7 @@ public:
         );
     }
 
-    static Observer & observerInEffect ();
+    static Observer & current ();
 
 private:
     void markBlind() {
@@ -166,7 +166,7 @@ public:
     // getting an ID, in that if anything were actually observed you'd
     // get that falling out of somewhere else?
 #ifdef NODE_ID_CAN_BE_CHANGED
-    void getId(
+    void identity(
         Identity const & result,
         methyl::NodePrivate const & thisNode
     );
@@ -177,12 +177,12 @@ public:
         methyl::NodePrivate const & thisNode
     );
 
-    void getParent (
+    void parent (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getLabelInParent (
+    void labelInParent (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode
     );
@@ -212,7 +212,7 @@ public:
         methyl::Tag const & tag
     );
 
-    void getTag (
+    void tag (
         methyl::Tag const & result,
         methyl::NodePrivate const & thisNode
     );
@@ -236,12 +236,12 @@ public:
         methyl::Label const & label
     );
 
-    void getFirstLabel (
+    void firstLabel (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getLastLabel (
+    void lastLabel (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode
     );
@@ -252,7 +252,7 @@ public:
         methyl::Label const & label
     );
 
-    void getLabelAfter (
+    void labelAfter (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
@@ -264,7 +264,7 @@ public:
         methyl::Label const & label
     );
 
-    void getLabelBefore (
+    void labelBefore (
         methyl::Label const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
@@ -272,13 +272,13 @@ public:
 
     // NODE IN LABEL ENUMERATION
 
-    void getFirstChildInLabel (
+    void firstChildInLabel (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
     );
 
-    void getLastChildInLabel (
+    void lastChildInLabel (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode,
         methyl::Label const & label
@@ -289,7 +289,7 @@ public:
         methyl::NodePrivate const & thisNode
     );
 
-    void getNextSiblingInLabel (
+    void nextSiblingInLabel (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode
     );
@@ -299,12 +299,12 @@ public:
         methyl::NodePrivate const & thisNode
     );
 
-    void getPreviousSiblingInLabel (
+    void previousSiblingInLabel (
         methyl::NodePrivate const & result,
         methyl::NodePrivate const & thisNode
     );
 
-    void getText (
+    void text (
         const QString & result,
         methyl::NodePrivate const & thisNode
     );

@@ -62,18 +62,18 @@ unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree () const {
     NodePrivate const & original = *this;
 
     if (not original.hasTag())
-        return NodePrivate::createText(original.getText(HERE));
+        return NodePrivate::createText(original.text(HERE));
 
-    auto clone = NodePrivate::create(original.getTag(HERE));
+    auto clone = NodePrivate::create(original.tag(HERE));
     if (not original.hasAnyLabels())
         return clone;
 
-    Label label = original.getFirstLabel(HERE);
+    Label label = original.firstLabel(HERE);
     bool moreLabels = true;
     unsigned int labelCount = 0;
     while (moreLabels) {
         const NodePrivate * childOfOriginal =
-            &original.getFirstChildInLabel(label, HERE);
+            &original.firstChildInLabel(label, HERE);
 
         labelCount++;
         bool moreChildren = true;
@@ -88,11 +88,11 @@ unique_ptr<NodePrivate> NodePrivate::makeCloneOfSubtree () const {
             );
             moreChildren = childOfOriginal->hasNextSiblingInLabel();
             if (moreChildren)
-                childOfOriginal = &childOfOriginal->getNextSiblingInLabel(HERE);
+                childOfOriginal = &childOfOriginal->nextSiblingInLabel(HERE);
         }
         moreLabels = original.hasLabelAfter(label, HERE);
         if (moreLabels)
-            label = original.getLabelAfter(label, HERE);
+            label = original.labelAfter(label, HERE);
     }
     hopefully(clone->isSubtreeCongruentTo(original), HERE);
     return clone;
@@ -187,12 +187,12 @@ NodePrivate::~NodePrivate ()
     // table first.
     {
         QWriteLocker lock (&globalEngine->_mapLock);
-        hopefully(globalEngine->_mapIdToNode.erase(getId()) == 1, HERE);
+        hopefully(globalEngine->_mapIdToNode.erase(identity()) == 1, HERE);
     }
 }
 
 
-methyl::Identity NodePrivate::getId() const {
+methyl::Identity NodePrivate::identity() const {
     return _id;
 }
 
@@ -207,15 +207,15 @@ bool NodePrivate::hasParent() const {
 }
 
 
-NodePrivate const & NodePrivate::getParent (codeplace const & cp) const {
+NodePrivate const & NodePrivate::parent (codeplace const & cp) const {
     hopefully(hasParent(), cp);
     return *_parent;
 }
 
 
-NodePrivate & NodePrivate::getParent (codeplace const & cp) {
+NodePrivate & NodePrivate::parent (codeplace const & cp) {
     NodePrivate const & constRef = *this;
-    return const_cast<NodePrivate &>(constRef.getParent(cp));
+    return const_cast<NodePrivate &>(constRef.parent(cp));
 }
 
 
@@ -256,12 +256,12 @@ NodePrivate::relationship_info NodePrivate::relationshipToParent (
 
 
 
-Label NodePrivate::getLabelInParent (codeplace const & cp) const {
+Label NodePrivate::labelInParent (codeplace const & cp) const {
     return relationshipToParent(cp)._labelInParent;
 }
 
 
-NodePrivate const & NodePrivate::getRoot() const {
+NodePrivate const & NodePrivate::root() const {
     NodePrivate const * current = this;
     while (current->_parent) {
         current = _parent->_parent;
@@ -270,9 +270,9 @@ NodePrivate const & NodePrivate::getRoot() const {
 }
 
 
-NodePrivate & NodePrivate::getRoot() {
+NodePrivate & NodePrivate::root() {
     NodePrivate const & constRef = *this;
-    return const_cast<NodePrivate &>(constRef.getRoot());
+    return const_cast<NodePrivate &>(constRef.root());
 }
 
 
@@ -286,13 +286,13 @@ bool NodePrivate::hasTag() const {
 }
 
 
-Tag NodePrivate::getTag (codeplace const & cp) const {
+Tag NodePrivate::tag (codeplace const & cp) const {
     hopefully(hasTag(), cp);
     return *_tag;
 }
 
 
-QString NodePrivate::getText (codeplace const & cp) const {
+QString NodePrivate::text (codeplace const & cp) const {
     hopefully(hasText(), cp);
     return *_text;
 }
@@ -316,13 +316,13 @@ bool NodePrivate::hasLabel (Label const & label) const {
 }
 
 
-Label NodePrivate::getFirstLabel (codeplace const & cp) const {
+Label NodePrivate::firstLabel (codeplace const & cp) const {
     hopefully(hasAnyLabels(), cp);
     return (*_labelToChildren.begin()).first;
 }
 
 
-Label NodePrivate::getLastLabel (codeplace const & cp) const {
+Label NodePrivate::lastLabel (codeplace const & cp) const {
     hopefully(hasAnyLabels(), cp);
     return (*--_labelToChildren.end()).first;
 }
@@ -339,7 +339,7 @@ bool NodePrivate::hasLabelAfter (
 }
 
 
-Label NodePrivate::getLabelAfter (
+Label NodePrivate::labelAfter (
     Label const & label,
     codeplace const & cp
 ) const
@@ -361,7 +361,7 @@ bool NodePrivate::hasLabelBefore (
 }
 
 
-Label NodePrivate::getLabelBefore (
+Label NodePrivate::labelBefore (
     Label const & label,
     codeplace const & cp
 ) const
@@ -378,7 +378,7 @@ Label NodePrivate::getLabelBefore (
 // AccessorIn Label Enumeration
 //
 
-NodePrivate const & NodePrivate::getFirstChildInLabel (
+NodePrivate const & NodePrivate::firstChildInLabel (
     Label const & label,
     codeplace const & cp
 ) const
@@ -389,16 +389,16 @@ NodePrivate const & NodePrivate::getFirstChildInLabel (
 }
 
 
-NodePrivate & NodePrivate::getFirstChildInLabel (
+NodePrivate & NodePrivate::firstChildInLabel (
     Label const & label,
     codeplace const & cp
 ) {
     NodePrivate const & constRef = *this;
-    return const_cast<NodePrivate &>(constRef.getFirstChildInLabel(label, cp));
+    return const_cast<NodePrivate &>(constRef.firstChildInLabel(label, cp));
 }
 
 
-NodePrivate const & NodePrivate::getLastChildInLabel (
+NodePrivate const & NodePrivate::lastChildInLabel (
     Label const & label,
     codeplace const & cp
 ) const
@@ -409,12 +409,12 @@ NodePrivate const & NodePrivate::getLastChildInLabel (
 }
 
 
-NodePrivate & NodePrivate::getLastChildInLabel (
+NodePrivate & NodePrivate::lastChildInLabel (
     Label const & label,
     codeplace const & cp
 ) {
     NodePrivate const & constRef = *this;
-    return const_cast<NodePrivate &>(constRef.getLastChildInLabel(label, cp));
+    return const_cast<NodePrivate &>(constRef.lastChildInLabel(label, cp));
 }
 
 
@@ -425,7 +425,7 @@ bool NodePrivate::hasNextSiblingInLabel () const {
 }
 
 
-NodePrivate const & NodePrivate::getNextSiblingInLabel (
+NodePrivate const & NodePrivate::nextSiblingInLabel (
     codeplace const & cp
 ) const
 {
@@ -435,11 +435,11 @@ NodePrivate const & NodePrivate::getNextSiblingInLabel (
 }
 
 
-NodePrivate & NodePrivate::getNextSiblingInLabel (
+NodePrivate & NodePrivate::nextSiblingInLabel (
     codeplace const & cp
 ) {
     NodePrivate const & constRef = *this;
-    return const_cast<NodePrivate &>(constRef.getNextSiblingInLabel(cp));
+    return const_cast<NodePrivate &>(constRef.nextSiblingInLabel(cp));
 }
 
 
@@ -450,7 +450,7 @@ bool NodePrivate::hasPreviousSiblingInLabel () const {
 }
 
 
-NodePrivate const & NodePrivate::getPreviousSiblingInLabel (
+NodePrivate const & NodePrivate::previousSiblingInLabel (
     codeplace const & cp
 ) const {
     relationship_info info = relationshipToParent(HERE);
@@ -459,11 +459,11 @@ NodePrivate const & NodePrivate::getPreviousSiblingInLabel (
 }
 
 
-NodePrivate & NodePrivate::getPreviousSiblingInLabel (
+NodePrivate & NodePrivate::previousSiblingInLabel (
     codeplace const & cp
 ) {
     NodePrivate const & constRef = *this;
-    return const_cast<NodePrivate &>(constRef.getPreviousSiblingInLabel(cp));
+    return const_cast<NodePrivate &>(constRef.previousSiblingInLabel(cp));
 }
 
 
@@ -693,14 +693,14 @@ int NodePrivate::compare (NodePrivate const & other) const {
         if (not thisCur->hasText() and otherCur->hasText())
             return 1;
         if (thisCur->hasText() and otherCur->hasText()) {
-            int cmp = thisCur->getText(HERE).compare(otherCur->getText(HERE));
+            int cmp = thisCur->text(HERE).compare(otherCur->text(HERE));
             if (cmp != 0)
                 return cmp;
         } else {
-            int cmp = thisCur->getTag(HERE).compare(otherCur->getTag(HERE));
+            int cmp = thisCur->tag(HERE).compare(otherCur->tag(HERE));
             if (cmp != 0)
                 return cmp;
-            if (thisCur->getTag(HERE) != otherCur->getTag(HERE))
+            if (thisCur->tag(HERE) != otherCur->tag(HERE))
                 return false;
         }
         thisCur = thisCur->maybeNextPreorderNodeUnderRoot(*this);

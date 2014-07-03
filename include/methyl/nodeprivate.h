@@ -74,7 +74,7 @@ public:
 
     unique_ptr<NodePrivate> makeCloneOfSubtree () const;
 
-    Identity getId() const;
+    Identity identity() const;
 
 
     //
@@ -83,15 +83,15 @@ public:
 public:
     bool hasParent() const;
 
-    NodePrivate const & getParent (codeplace const & cp) const;
+    NodePrivate const & parent (codeplace const & cp) const;
 
-    NodePrivate & getParent (codeplace const & cp);
+    NodePrivate & parent (codeplace const & cp);
 
-    Label getLabelInParent (codeplace const & cp) const;
+    Label labelInParent (codeplace const & cp) const;
 
-    NodePrivate const & getRoot() const;
+    NodePrivate const & root() const;
 
-    NodePrivate & getRoot();
+    NodePrivate & root();
 
     //
     // Tag Examination
@@ -99,7 +99,7 @@ public:
 public:
     bool hasTag () const;
 
-    Tag getTag (codeplace const & cp) const;
+    Tag tag (codeplace const & cp) const;
 
 
     //
@@ -112,7 +112,7 @@ public:
         return not hasTag();
     }
 
-    QString getText (codeplace const & cp) const;
+    QString text (codeplace const & cp) const;
 
 
     //
@@ -123,46 +123,46 @@ public:
 
     bool hasLabel (Label const & label) const;
 
-    Label getFirstLabel (codeplace const & cp) const;
+    Label firstLabel (codeplace const & cp) const;
 
     optional<Label> maybeGetFirstLabel () const {
         if (not hasAnyLabels())
             return nullopt;
-        return getFirstLabel(HERE);
+        return firstLabel(HERE);
     }
 
-    Label getLastLabel (codeplace const & cp) const;
+    Label lastLabel (codeplace const & cp) const;
 
     optional<Label> maybeGetLastLabel () const {
         if (not hasAnyLabels())
             return nullopt;
-        return getLastLabel(HERE);
+        return lastLabel(HERE);
     }
 
     bool hasLabelAfter (Label const & label, codeplace const & cp) const;
 
-    Label getLabelAfter (Label const & label, codeplace const & cp) const;
+    Label labelAfter (Label const & label, codeplace const & cp) const;
 
-    optional<Label> maybeGetLabelAfter (
+    optional<Label> maybeLabelAfter (
         Label const & label,
         codeplace const & cp
     ) const {
         if (not hasLabelAfter(label, cp))
             return nullopt;
-        return getLabelAfter(label, HERE);
+        return labelAfter(label, HERE);
     }
 
     bool hasLabelBefore (Label const & label, codeplace const & cp) const;
 
-    Label getLabelBefore (Label const & label, codeplace const & cp) const;
+    Label labelBefore (Label const & label, codeplace const & cp) const;
 
-    optional<Label> maybeGetLabelBefore (
+    optional<Label> maybeLabelBefore (
         Label const & label,
         codeplace const & cp
     ) const {
         if (not hasLabelBefore(label, cp))
             return nullopt;
-        return getLabelBefore(label, HERE);
+        return labelBefore(label, HERE);
     }
 
 
@@ -170,83 +170,83 @@ public:
     // node in label enumeration
     //
 public:
-    NodePrivate const & getFirstChildInLabel (
+    NodePrivate const & firstChildInLabel (
         Label const & label,
         codeplace const & cp
     ) const;
 
-    NodePrivate & getFirstChildInLabel (
+    NodePrivate & firstChildInLabel (
         Label const & label,
         codeplace const & cp
     );
 
-    NodePrivate const * maybeGetFirstChildInLabel (Label const & label) const {
+    NodePrivate const * maybeFirstChildInLabel (Label const & label) const {
         if (not hasLabel(label))
             return nullptr;
-        return &getFirstChildInLabel(label, HERE);
+        return &firstChildInLabel(label, HERE);
     }
 
-    NodePrivate * maybeGetFirstChildInLabel (Label const & label) {
+    NodePrivate * maybeFirstChildInLabel (Label const & label) {
         if (not hasLabel(label))
             return nullptr;
-        return &getFirstChildInLabel(label, HERE);
+        return &firstChildInLabel(label, HERE);
     }
 
-    NodePrivate const & getLastChildInLabel (
+    NodePrivate const & lastChildInLabel (
         Label const & label,
         codeplace const & cp
     ) const;
 
-    NodePrivate & getLastChildInLabel (
+    NodePrivate & lastChildInLabel (
         Label const & label, codeplace const & cp
     );
 
-    NodePrivate const * maybeGetLastChildInLabel (Label const & label) const {
+    NodePrivate const * maybeLastChildInLabel (Label const & label) const {
         if (not hasLabel(label))
             return nullptr;
-        return &getLastChildInLabel(label, HERE);
+        return &lastChildInLabel(label, HERE);
     }
 
-    NodePrivate * maybeGetLastChildInLabel (Label const & label) {
+    NodePrivate * maybeLastChildInLabel (Label const & label) {
         if (not hasLabel(label))
             return nullptr;
-        return &getLastChildInLabel(label, HERE);
+        return &lastChildInLabel(label, HERE);
     }
 
     bool hasNextSiblingInLabel() const;
 
-    NodePrivate const & getNextSiblingInLabel (codeplace const & cp) const;
+    NodePrivate const & nextSiblingInLabel (codeplace const & cp) const;
 
-    NodePrivate & getNextSiblingInLabel (codeplace const & cp);
+    NodePrivate & nextSiblingInLabel (codeplace const & cp);
 
-    NodePrivate const * maybeGetNextSiblingInLabel() const {
+    NodePrivate const * maybeNextSiblingInLabel() const {
         if (not hasNextSiblingInLabel())
             return nullptr;
-        return &getNextSiblingInLabel(HERE);
+        return &nextSiblingInLabel(HERE);
     }
 
-    NodePrivate * maybeGetNextSiblingInLabel() {
+    NodePrivate * maybeNextSiblingInLabel() {
         if (not hasNextSiblingInLabel())
             return nullptr;
-        return &getNextSiblingInLabel(HERE);
+        return &nextSiblingInLabel(HERE);
     }
 
     bool hasPreviousSiblingInLabel() const;
 
-    NodePrivate const & getPreviousSiblingInLabel(codeplace const & cp) const;
+    NodePrivate const & previousSiblingInLabel(codeplace const & cp) const;
 
-    NodePrivate & getPreviousSiblingInLabel(codeplace const & cp);
+    NodePrivate & previousSiblingInLabel(codeplace const & cp);
 
-    NodePrivate const * maybeGetPreviousSiblingInLabel() const {
+    NodePrivate const * maybePreviousSiblingInLabel() const {
         if (not hasPreviousSiblingInLabel())
             return nullptr;
-        return &getPreviousSiblingInLabel(HERE);
+        return &previousSiblingInLabel(HERE);
     }
 
-    NodePrivate * maybeGetPreviousSiblingInLabel() {
+    NodePrivate * maybePreviousSiblingInLabel() {
         if (not hasPreviousSiblingInLabel())
             return nullptr;
-        return &getPreviousSiblingInLabel(HERE);
+        return &previousSiblingInLabel(HERE);
     }
 
 
@@ -335,19 +335,19 @@ public:
     ) const {
         NodePrivate const * nodeCur = this;
         if (nodeCur->hasAnyLabels())
-            return &nodeCur->getFirstChildInLabel(
-                nodeCur->getFirstLabel(HERE), HERE
+            return &nodeCur->firstChildInLabel(
+                nodeCur->firstLabel(HERE), HERE
             );
 
         while (nodeCur != &nodeRoot) {
             if (nodeCur->hasNextSiblingInLabel())
-                return &nodeCur->getNextSiblingInLabel(HERE);
+                return &nodeCur->nextSiblingInLabel(HERE);
 
-            Label labelInParent = nodeCur->getLabelInParent(HERE);
-            NodePrivate const & nodeParent = nodeCur->getParent(HERE);
+            Label labelInParent = nodeCur->labelInParent(HERE);
+            NodePrivate const & nodeParent = nodeCur->parent(HERE);
             if (nodeParent.hasLabelAfter(labelInParent, HERE))
-                return &nodeParent.getFirstChildInLabel(
-                    nodeParent.getLabelAfter(labelInParent, HERE), HERE
+                return &nodeParent.firstChildInLabel(
+                    nodeParent.labelAfter(labelInParent, HERE), HERE
                 );
 
             nodeCur = &nodeParent;

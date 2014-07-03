@@ -47,7 +47,7 @@ class Label : private Tag {
 public:
     using Tag::toUrl;
 
-    using Tag::maybeGetAsIdentity;
+    using Tag::maybeAsIdentity;
 
 
     // Comparison operators need to take Label, and not Tag.  So we

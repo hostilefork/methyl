@@ -3,11 +3,11 @@
 
 namespace methyl {
 
-shared_ptr<Context> Context::contextForCreate() {
+shared_ptr<Context> Context::create() {
     return globalEngine->contextForCreate();
 }
 
-shared_ptr<Context> Context::contextForLookup() {
+shared_ptr<Context> Context::lookup() {
     return globalEngine->contextForLookup();
 }
 

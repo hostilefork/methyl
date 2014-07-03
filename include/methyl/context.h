@@ -70,9 +70,9 @@ private:
 friend class Engine;
 template<class> friend class Tree;
 private:
-    static shared_ptr<Context> contextForCreate();
+    static shared_ptr<Context> create();
 
-    static shared_ptr<Context> contextForLookup();
+    static shared_ptr<Context> lookup();
 
 public:
     Context (codeplace const & whereConstructed)

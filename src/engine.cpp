@@ -46,7 +46,7 @@ bool Error::wasCausedByCancellation () const {
             return true;
         }
         if ((*current)->hasLabel(globalLabelCausedBy)) {
-            current = (*current)->getFirstChildInLabel<Error>(
+            current = (*current)->firstChildInLabel<Error>(
                 globalLabelCausedBy, HERE
             );
         } else {
@@ -60,15 +60,15 @@ bool Error::wasCausedByCancellation () const {
 QString Error::getDescription () const
 {
     QString result;
-    auto tagNode = maybeGetTagNode();
+    auto tagNode = maybeLookupTagNode();
     if (tagNode and (*tagNode)->hasLabel(methyl::globalLabelName)) {
-        auto nameNode = (*tagNode)->getFirstChildInLabel(
+        auto nameNode = (*tagNode)->firstChildInLabel(
             methyl::globalLabelName, HERE
         );
-        result = nameNode->getText(HERE);
+        result = nameNode->text(HERE);
         // caused by?  how to present...
     } else {
-        result = QString("Error Code URI: ") + getTag(HERE).toUrl().toString();
+        result = QString("Error Code URI: ") + tag(HERE).toUrl().toString();
     }
     return result;
 }
@@ -138,7 +138,7 @@ Tree<Accessor> Engine::makeNodeWithId (
     auto nodeWithId = Tree<Accessor> (
         // cannot use make_unique here; private constructor
         unique_ptr<NodePrivate> (new NodePrivate (id, tag)),
-        Context::contextForCreate()
+        Context::create()
     );
 
     if (name) {

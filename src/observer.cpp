@@ -100,7 +100,7 @@ namespace methyl {
 tracked<bool> globalDebugObserver (true, HERE);
 
 
-Observer & Observer::observerInEffect () {
+Observer & Observer::current () {
     return globalEngine->observerInEffect();
 }
 
@@ -116,7 +116,7 @@ Observer::Observer (
     for (auto & root : watchedRoots) {
         // Can't call hasParent() here if no Observer is in effect (catch-22)
         // Have to reach underneath and use the NodePrivate function
-        auto & rootPrivate = root.accessor().getNodePrivate();
+        auto & rootPrivate = root.accessor().nodePrivate();
         hopefully(not rootPrivate.hasParent(), HERE);
         _watchedRoots.insert(&rootPrivate);
     }
@@ -196,7 +196,7 @@ bool Observer::maybeObserved (
 //
 
 // node in label enumeration
-void Observer::getFirstChildInLabel (
+void Observer::firstChildInLabel (
     NodePrivate const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -211,7 +211,7 @@ void Observer::getFirstChildInLabel (
 }
 
 
-void Observer::getLastChildInLabel (
+void Observer::lastChildInLabel (
     NodePrivate const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -235,7 +235,7 @@ void Observer::hasParent (
 }
 
 
-void Observer::getParent (
+void Observer::parent (
     NodePrivate const & result,
     NodePrivate const & thisNode
 ) {
@@ -244,7 +244,7 @@ void Observer::getParent (
 }
 
 
-void Observer::getLabelInParent (
+void Observer::labelInParent (
     Label const & result,
     NodePrivate const & thisNode
 ) {
@@ -304,7 +304,7 @@ void Observer::hasTagEqualTo (
 }
 
 
-void Observer::getTag(
+void Observer::tag(
     methyl::Tag const & result,
     NodePrivate const & thisNode
 ) {
@@ -350,7 +350,7 @@ void Observer::hasLabel (
 }
 
 
-void Observer::getFirstLabel (
+void Observer::firstLabel (
     Label const & result,
     NodePrivate const & thisNode
 ) {
@@ -360,7 +360,7 @@ void Observer::getFirstLabel (
 }
 
 
-void Observer::getLastLabel (
+void Observer::lastLabel (
     Label const & result,
     NodePrivate const & thisNode
 ) {
@@ -382,7 +382,7 @@ void Observer::hasLabelAfter (
 }
 
 
-void Observer::getLabelAfter (
+void Observer::labelAfter (
     Label const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -406,7 +406,7 @@ void Observer::hasLabelBefore (
 }
 
 
-void Observer::getLabelBefore (
+void Observer::labelBefore (
     Label const & result,
     NodePrivate const & thisNode,
     Label const & label
@@ -430,7 +430,7 @@ void Observer::hasNextSiblingInLabel (
 }
 
 
-void Observer::getNextSiblingInLabel (
+void Observer::nextSiblingInLabel (
     NodePrivate const & result,
     NodePrivate const & thisNode
 ) {
@@ -448,7 +448,7 @@ void Observer::hasPreviousSiblingInLabel (
 }
 
 
-void Observer::getPreviousSiblingInLabel (
+void Observer::previousSiblingInLabel (
     NodePrivate const & result,
     NodePrivate const & thisNode
 ) {
@@ -457,7 +457,7 @@ void Observer::getPreviousSiblingInLabel (
 }
 
 
-void Observer::getText (
+void Observer::text (
     const QString & result,
     NodePrivate const & thisNode
 ) {

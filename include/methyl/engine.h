@@ -78,7 +78,7 @@ public:
         Node<T> const & node,
         shared_ptr<Context> const & context
     ) {
-        return Node<T> (node.accessor().getNodePrivate(), context);
+        return Node<T> (node.accessor().nodePrivate(), context);
     }
 
     template <class T>
@@ -86,7 +86,7 @@ public:
         Node<T> const & node,
         shared_ptr<Context> && context
     ) {
-        return Node<T> (node.accessor().getNodePrivate(), context);
+        return Node<T> (node.accessor().nodePrivate(), context);
     }
 
     template <class NodeType>
@@ -123,7 +123,7 @@ public:
             );
 
         return std::pair<NodePrivate const *, shared_ptr<Context>> (
-            &(*node).accessor().getNodePrivate(),
+            &(*node).accessor().nodePrivate(),
             (*node).accessor().context()
         );
     }

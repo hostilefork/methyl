@@ -138,7 +138,7 @@ public:
         return QUrl(*_urlString);
     }
 
-    optional<Identity> maybeGetAsIdentity () const {
+    optional<Identity> maybeAsIdentity () const {
         if (not _uuid)
             return nullopt;
 

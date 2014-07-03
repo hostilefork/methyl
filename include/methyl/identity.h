@@ -98,7 +98,7 @@ namespace std {
             methyl::Identity const & right
         ) const
         {
-            return left.getId() < right.getId();
+            return left.identity() < right.identity();
         }
     };
 */

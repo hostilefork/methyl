@@ -104,7 +104,7 @@ private:
 
 private:
     unique_ptr<NodePrivate> extractNodePrivate() {
-        NodePrivate & node = accessor().getNodePrivate();
+        NodePrivate & node = accessor().nodePrivate();
         // REVIEW: We keep the context alive so constructors can extract it out
         // but is this the best way of doing it?
         shared_ptr<Context> context = accessor().context();
@@ -115,23 +115,23 @@ private:
 
 public:
     explicit operator bool () const {
-        return accessor().maybeGetNodePrivate() != nullptr;
+        return accessor().maybeNodePrivate() != nullptr;
     }
 
     Node<T const> root () const {
         Q_ASSERT(static_cast<bool>(*this));
-        hopefully(not accessor().getNodePrivate().hasParent(), HERE);
+        hopefully(not accessor().nodePrivate().hasParent(), HERE);
         return Node<T const>(
-            accessor().getNodePrivate(),
+            accessor().nodePrivate(),
             accessor().context()
         );
     }
 
     Node<T> root () {
         Q_ASSERT(static_cast<bool>(*this));
-        hopefully(not accessor().getNodePrivate().hasParent(), HERE);
+        hopefully(not accessor().nodePrivate().hasParent(), HERE);
         return Node<T>(
-            accessor().getNodePrivate(),
+            accessor().nodePrivate(),
             accessor().context()
         );
     }
@@ -157,8 +157,8 @@ public:
 
         // Set internals to the result of duplicating the other's content
         accessor().setInternalProperties(
-            other.accessor().getNodePrivate().makeCloneOfSubtree().release(),
-            Context::contextForCreate()
+            other.accessor().nodePrivate().makeCloneOfSubtree().release(),
+            Context::create()
         );
 
         return *this;
@@ -180,8 +180,8 @@ public:
 
         // Set internals to the result of duplicating the other's content
         accessor().setInternalProperties(
-            other.accessor().getNodePrivate().makeCloneOfSubtree(),
-            Context::contextForCreate()
+            other.accessor().nodePrivate().makeCloneOfSubtree(),
+            Context::create()
         );
 
         return *this;
@@ -228,8 +228,8 @@ public:
         Tree const & other
     ) :
         Tree (
-            other.accessor().getNodePrivate().makeCloneOfSubtree(),
-            Context::contextForCreate()
+            other.accessor().nodePrivate().makeCloneOfSubtree(),
+            Context::create()
         )
     {
     }
@@ -258,8 +258,8 @@ public:
         >::type = nullptr
     ) :
         Tree (
-            other.accessor().getNodePrivate().makeCloneOfSubtree(),
-            Context::contextForCreate()
+            other.accessor().nodePrivate().makeCloneOfSubtree(),
+            Context::create()
         )
     {
     }
@@ -288,8 +288,8 @@ public:
         >::type = nullptr
     ) noexcept :
         Tree (
-            other.accessor().getNodePrivate().makeCloneOfSubtree(),
-            Context::contextForCreate()
+            other.accessor().nodePrivate().makeCloneOfSubtree(),
+            Context::create()
         )
     {
     }
@@ -329,14 +329,14 @@ public:
     static Tree<T> create (Tag const & tag) {
         return Tree<T>(
             std::move(NodePrivate::create(tag)),
-            Context::contextForCreate()
+            Context::create()
         );
     }
 
     static Tree<T> createText (QString const & str) {
         return Tree<T>(
             std::move(NodePrivate::createText(str)),
-            Context::contextForCreate()
+            Context::create()
         );
     }
 };

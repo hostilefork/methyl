@@ -52,7 +52,7 @@ namespace std {
         ) const
         {
             return std::hash<methyl::NodePrivate const *>()(
-                &nodeRef.accessor().getNodePrivate()
+                &nodeRef.accessor().nodePrivate()
             );
         }
     };
@@ -72,7 +72,7 @@ namespace std {
             // https://github.com/hostilefork/methyl/issues/32
 
             methyl::NodePrivate const & nodePrivate
-                = nodeRef.accessor().getNodePrivate();
+                = nodeRef.accessor().nodePrivate();
 
             size_t result = 0;
             int const N = -1; // For now, let's do full equality...
@@ -86,9 +86,9 @@ namespace std {
                 // https://bugreports.qt-project.org/browse/QTBUG-33428
 
                 if (current->hasText()) {
-                    result ^= qHash(current->getText(HERE));
+                    result ^= qHash(current->text(HERE));
                 } else {
-                    result ^= tagHasher(current->getTag(HERE));
+                    result ^= tagHasher(current->tag(HERE));
                 }
                 current = current->maybeNextPreorderNodeUnderRoot(nodePrivate);
             }
@@ -149,7 +149,7 @@ template <class> friend class Tree;
     }
 
 
-    // we know getNodePrivate() will only return a const node which will
+    // we know nodePrivate() will only return a const node which will
     // restore the constness.  As long as nodePtr is not used
     // directly in its non-const form by this class, we should
     // not trigger undefined behavior...
@@ -173,7 +173,7 @@ template <class> friend class Tree;
 
 
 private:
-    void checkValid() const {
+    void checkValid () const {
         if (not _contextDoNotUseDirectly or _contextDoNotUseDirectly->isValid())
             return;
 
@@ -184,7 +184,7 @@ private:
     }
 
     // Accessor extraction--for friend internal classes only
-    NodePrivate & getNodePrivate () {
+    NodePrivate & nodePrivate () {
         checkValid();
 
         static auto nullNodePrivateCodeplace = HERE;
@@ -193,7 +193,7 @@ private:
         return *_nodePrivateDoNotUseDirectly;
     }
 
-    NodePrivate const & getNodePrivate () const {
+    NodePrivate const & nodePrivate () const {
         checkValid();
 
         static auto nullNodePrivateCodeplace = HERE;
@@ -202,12 +202,12 @@ private:
         return *_nodePrivateDoNotUseDirectly;
     }
 
-    NodePrivate * maybeGetNodePrivate () {
+    NodePrivate * maybeNodePrivate () {
         checkValid();
         return _nodePrivateDoNotUseDirectly;
     }
 
-    NodePrivate const * maybeGetNodePrivate () const {
+    NodePrivate const * maybeNodePrivate () const {
         checkValid();
         return _nodePrivateDoNotUseDirectly;
     }
@@ -236,18 +236,18 @@ protected:
     // solution--could use some more thought
     template <class T>
     Node<T const> thisNodeAs () const {
-        return Node<T const>(getNodePrivate(), context());
+        return Node<T const>(nodePrivate(), context());
     }
 
     template <class T>
     Node<T> thisNodeAs () {
-        return Node<T>(getNodePrivate(), context());
+        return Node<T>(nodePrivate(), context());
     }
 
 
 public:
     // read-only accessors
-    Node<Accessor const> getRoot () const {
+    Node<Accessor const> root () const {
         // Currently there is no specialized observer for seeing the root
         // of something; even though there's a fast operation for finding
         // the root in NodePrivate.  So we have to register observation
@@ -255,15 +255,15 @@ public:
 
         Node<Accessor const> current = thisNodeAs<Accessor>();
         while (current->hasParent()) {
-            current = current->getParent(HERE);
+            current = current->parent(HERE);
         }
         return current;
     }
 
-    Node<Accessor> getRoot () {
+    Node<Accessor> root () {
         Node<Accessor> current = thisNodeAs<Accessor>();
         while (current->hasParent()) {
-            current = current->getParent(HERE);
+            current = current->parent(HERE);
         }
         return current;
     }
@@ -271,78 +271,78 @@ public:
 
     // Extract the Identity of this node.
 public:
-    Identity getId () const {
-        return getNodePrivate().getId();
+    Identity identity () const {
+        return nodePrivate().identity();
     }
 
 
 public:
     // Parent specification
     bool hasParent () const {
-        bool result = getNodePrivate().hasParent();
-        Observer::observerInEffect().hasParent(result, getNodePrivate());
+        bool result = nodePrivate().hasParent();
+        Observer::current().hasParent(result, nodePrivate());
         return result;
     }
 
-    Node<Accessor const> getParent (codeplace const & cp) const {
-        NodePrivate const & result = getNodePrivate().getParent(cp);
-        Observer::observerInEffect().getParent(result, getNodePrivate());
+    Node<Accessor const> parent (codeplace const & cp) const {
+        NodePrivate const & result = nodePrivate().parent(cp);
+        Observer::current().parent(result, nodePrivate());
         return Node<Accessor const>(result, context());
     }
 
-    Node<Accessor> getParent(codeplace const & cp) {
-        NodePrivate & result = getNodePrivate().getParent(cp);
-        Observer::observerInEffect().getParent(result, getNodePrivate());
+    Node<Accessor> parent(codeplace const & cp) {
+        NodePrivate & result = nodePrivate().parent(cp);
+        Observer::current().parent(result, nodePrivate());
         return Node<Accessor>(result, context());
     }
 
     template <class T>
-    Node<T const> getParent (codeplace const & cp) const {
-        auto result = Node<T>::checked(getParent(cp));
+    Node<T const> parent (codeplace const & cp) const {
+        auto result = Node<T>::checked(parent(cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
 
     template <class T>
-    Node<T> getParent (codeplace const & cp) {
-        auto result = Node<T>::checked(getParent(cp));
+    Node<T> parent (codeplace const & cp) {
+        auto result = Node<T>::checked(parent(cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
 
-    optional<Node<Accessor const>> maybeGetParent () const {
+    optional<Node<Accessor const>> maybeParent () const {
         if (not hasParent())
             return nullopt;
-        return getParent(HERE);
+        return parent(HERE);
     }
 
-    optional<Node<Accessor>> maybeGetParent () {
+    optional<Node<Accessor>> maybeParent () {
         if (not hasParent())
             return nullopt;
-        return getParent(HERE);
+        return parent(HERE);
     }
 
     template <class T>
-    optional<Node<T const>> maybeGetParent () const {
-        return Node<T>::checked(maybeGetParent());
+    optional<Node<T const>> maybeParent () const {
+        return Node<T>::checked(maybeParent());
     }
 
     template <class T>
-    optional<Node<T>> maybeGetParent() {
-        return Node<T>::checked(maybeGetParent());
+    optional<Node<T>> maybeParent() {
+        return Node<T>::checked(maybeParent());
     }
 
-    Label getLabelInParent (codeplace const & cp) const {
-        Label result = getLabelInParent(cp);
+    Label labelInParent (codeplace const & cp) const {
+        Label result = labelInParent(cp);
 
-        Observer::observerInEffect().getLabelInParent(result, getNodePrivate());
+        Observer::current().labelInParent(result, nodePrivate());
         return result;
     }
 
     template <class T>
     bool hasParentEqualTo (Node<T> possibleParent) const {
         // should be a finer-grained micro-observation than this
-        optional<Node<Accessor>> parent = maybeGetParent();
+        optional<Node<Accessor>> parent = maybeParent();
         if (not parent) {
             return false;
         }
@@ -356,8 +356,8 @@ public:
     ) const
     {
         // should be a finer-grained observation than this
-        Label labelInParent = getLabelInParent(cp);
-        return labelInParent == possibleLabel;
+        Label label = labelInParent(cp);
+        return label == possibleLabel;
     }
 
     // Is the right term "direct child" or "immediate child"?
@@ -368,31 +368,29 @@ public:
 
         // REVIEW: Should have special invalidation, TBD
 
-        Node<Accessor const> parentOfChild = possibleChild->getParent(HERE);
-        return parentOfChild.accessor().getNodePrivate() == getNodePrivate();
+        Node<Accessor const> parentOfChild = possibleChild->parent(HERE);
+        return parentOfChild.accessor().nodePrivate() == nodePrivate();
     }
 
 public:
     // Tag specification
     bool hasTag () const {
-        bool result = getNodePrivate().hasTag();
-        Observer::observerInEffect().hasTag(result, getNodePrivate());
+        bool result = nodePrivate().hasTag();
+        Observer::current().hasTag(result, nodePrivate());
         return result;
     }
 
-    Tag getTag (codeplace const & cp) const {
-        Tag result = getNodePrivate().getTag(cp);
-        Observer::observerInEffect().getTag(result, getNodePrivate());
+    Tag tag (codeplace const & cp) const {
+        Tag result = nodePrivate().tag(cp);
+        Observer::current().tag(result, nodePrivate());
         return result;
     }
 
-    optional<Node<Accessor const>> maybeGetTagNode() const {
+    optional<Node<Accessor const>> maybeLookupTagNode() const {
         if (not hasTag())
             return nullopt;
 
-        Tag tag = getTag(HERE);
-
-        optional<Identity> id = tag.maybeGetAsIdentity();
+        optional<Identity> id = tag(HERE).maybeAsIdentity();
         if (not id)
             return nullopt;
 
@@ -406,32 +404,36 @@ public:
     }
 
     template <class T>
-    optional<Node<T const>> maybeGetTagNode() const {
-        return Node<T>::checked(maybeGetTagNode());
+    optional<Node<T const>> maybeLookupTagNode () const {
+        return Node<T>::checked(maybeLookupTagNode());
     }
 
     bool hasTagEqualTo (Tag const & possibleTag) const {
         // should be a finer-grained observation than this
         if (not hasTag())
             return false;
-        Tag const tag = getTag(HERE);
-        return tag == possibleTag;
+
+        return tag(HERE) == possibleTag;
     }
 
 
 public:
-    // Data accessors - should probably come from a templated lexical cast?
-    bool hasText () const { return getNodePrivate().hasText(); }
-    QString getText(codeplace const & cp) const {
-        QString result = getNodePrivate().getText(cp);
-        Observer::observerInEffect().getText(result, getNodePrivate());
+    // Data accessors
+    
+    bool hasText () const {
+        return nodePrivate().hasText();
+    }
+
+    QString text (codeplace const & cp) const {
+        QString result = nodePrivate().text(cp);
+        Observer::current().text(result, nodePrivate());
         return result;
     }
 
     bool hasTextEqualTo (QString const & str) const {
         if (not hasText())
             return false;
-        return getText(HERE) == str;
+        return text(HERE) == str;
     }
 
 
@@ -441,59 +443,67 @@ public:
     // order is invariant and comes from the label's identity
 
     bool hasAnyLabels () const {
-        bool result = getNodePrivate().hasAnyLabels();
-        Observer::observerInEffect().hasAnyLabels(result, getNodePrivate());
+        bool result = nodePrivate().hasAnyLabels();
+        Observer::current().hasAnyLabels(result, nodePrivate());
         return result;
     }
 
     bool hasLabel (Label const & label) const {
-        bool result = getNodePrivate().hasLabel(label);
-        Observer::observerInEffect().hasLabel(result, getNodePrivate(), label);
+        bool result = nodePrivate().hasLabel(label);
+        Observer::current().hasLabel(result, nodePrivate(), label);
         return result;
     }
 
-    Label getFirstLabel (codeplace const & cp) const {
-        Label result = getNodePrivate().getFirstLabel(cp);
-        Observer::observerInEffect().getFirstLabel(result, getNodePrivate());
+    Label firstLabel (codeplace const & cp) const {
+        Label result = nodePrivate().firstLabel(cp);
+        Observer::current().firstLabel(result, nodePrivate());
         return result;
     }
 
-    Label getLastLabel (codeplace const & cp) const {
-        Label result = getNodePrivate().getLastLabel(cp);
-        Observer::observerInEffect().getLastLabel(result, getNodePrivate());
+    Label lastLabel (codeplace const & cp) const {
+        Label result = nodePrivate().lastLabel(cp);
+        Observer::current().lastLabel(result, nodePrivate());
         return result;
     }
 
     bool hasLabelAfter (Label const & label, codeplace const & cp) const {
-        bool result = getNodePrivate().hasLabelAfter(label, cp);
-        Observer::observerInEffect().hasLabelAfter(result, getNodePrivate(), label);
+        bool result = nodePrivate().hasLabelAfter(label, cp);
+        Observer::current().hasLabelAfter(result, nodePrivate(), label);
         return result;
     }
 
-    Label getLabelAfter (Label const & label, codeplace const & cp) const {
-        Label result = getNodePrivate().getLabelAfter(label, cp);
-        Observer::observerInEffect().getLabelAfter(result, getNodePrivate(), label);
+    Label labelAfter (Label const & label, codeplace const & cp) const {
+        Label result = nodePrivate().labelAfter(label, cp);
+        Observer::current().labelAfter(result, nodePrivate(), label);
         return result;
     }
 
-    optional<Label> maybeGetLabelAfter (Label const & label, codeplace const & cp) const {
-        return getNodePrivate().maybeGetLabelAfter(label, cp);
+    optional<Label> maybeLabelAfter (
+        Label const & label,
+        codeplace const & cp
+    ) const
+    {
+        return nodePrivate().maybeLabelAfter(label, cp);
     }
 
     bool hasLabelBefore (Label const & label, codeplace const & cp) const {
-        bool result = getNodePrivate().hasLabelBefore(label, cp);
-        Observer::observerInEffect().hasLabelBefore(result, getNodePrivate(), label);
+        bool result = nodePrivate().hasLabelBefore(label, cp);
+        Observer::current().hasLabelBefore(result, nodePrivate(), label);
         return result;
     }
 
-    Label getLabelBefore (Label const & label, codeplace const & cp) const {
-        Label result = getNodePrivate().getLabelBefore(label, cp);
-        Observer::observerInEffect().getLabelBefore(result, getNodePrivate(), label);
+    Label labelBefore (Label const & label, codeplace const & cp) const {
+        Label result = nodePrivate().labelBefore(label, cp);
+        Observer::current().labelBefore(result, nodePrivate(), label);
         return result;
     }
 
-    optional<Label> maybeGetLabelBefore (Label const & label, codeplace const & cp) const {
-        return getNodePrivate().maybeGetLabelBefore(label, cp);
+    optional<Label> maybeLabelBefore (
+        Label const & label,
+        codeplace const & cp
+    ) const
+    {
+        return nodePrivate().maybeLabelBefore(label, cp);
     }
 
     // node in label enumeration
@@ -503,74 +513,74 @@ public:
     /// FirstChildInLabel
     ///
 
-    Node<Accessor const> getFirstChildInLabel (
+    Node<Accessor const> firstChildInLabel (
         Label const & label, codeplace const & cp
     ) const
     {
-        auto & result = getNodePrivate().getFirstChildInLabel(label, cp);
-        Observer::observerInEffect().getFirstChildInLabel(result, getNodePrivate(), label);
+        auto & result = nodePrivate().firstChildInLabel(label, cp);
+        Observer::current().firstChildInLabel(result, nodePrivate(), label);
         return Node<Accessor const>(result, context());
     }
 
-    Node<Accessor> getFirstChildInLabel (
+    Node<Accessor> firstChildInLabel (
         Label const & label, codeplace const & cp
     ) {
-        auto & result = getNodePrivate().getFirstChildInLabel(label, cp);
-        Observer::observerInEffect().getFirstChildInLabel(result, getNodePrivate(), label);
+        auto & result = nodePrivate().firstChildInLabel(label, cp);
+        Observer::current().firstChildInLabel(result, nodePrivate(), label);
         return Node<Accessor>(result, context());
     }
 
-    auto maybeGetFirstChildInLabel (Label const & label) const
+    auto maybeFirstChildInLabel (Label const & label) const
         -> optional<Node<Accessor const>>
     {
         optional<Node<Accessor const>> result;
         if (hasLabel(label))
-            result = getFirstChildInLabel(label, HERE);
+            result = firstChildInLabel(label, HERE);
         return result;
     }
 
-    auto maybeGetFirstChildInLabel (Label const & label)
+    auto maybeFirstChildInLabel (Label const & label)
         -> optional<Node<Accessor>>
     {
         optional<Node<Accessor>> result;
         if (hasLabel(label))
-            result = getFirstChildInLabel(label, HERE);
+            result = firstChildInLabel(label, HERE);
         return result;
     }
 
     template <class T>
-    Node<T const> getFirstChildInLabel (
+    Node<T const> firstChildInLabel (
         Label const & label,
         codeplace const & cp
     ) const
     {
-        auto result = Node<T>::checked(getFirstChildInLabel(label, cp));
+        auto result = Node<T>::checked(firstChildInLabel(label, cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
 
     template <class T>
-    Node<T> getFirstChildInLabel (
+    Node<T> firstChildInLabel (
         Label const & label,
         codeplace const & cp
     ) {
-        auto result = Node<T>::checked(getFirstChildInLabel(label, cp));
+        auto result = Node<T>::checked(firstChildInLabel(label, cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
 
     template <class T>
-    auto maybeGetFirstChildInLabel (Label const & label) const
+    auto maybeFirstChildInLabel (Label const & label) const
         -> optional<Node<T const>>
     {
-        return Node<T>::checked(maybeGetFirstChildInLabel(label));
+        return Node<T>::checked(maybeFirstChildInLabel(label));
     }
 
     template <class T>
-    auto maybeGetFirstChildInLabel (Label const & label)
+    auto maybeFirstChildInLabel (Label const & label)
         -> optional<Node<T>>
     {
-        return Node<T>::checked(maybeGetFirstChildInLabel(label));
+        return Node<T>::checked(maybeFirstChildInLabel(label));
     }
 
 
@@ -578,70 +588,70 @@ public:
     /// LastChildInLabel
     ///
 
-    Node<Accessor const> getLastChildInLabel (
+    Node<Accessor const> lastChildInLabel (
         Label const & label,
         codeplace const & cp
     ) const
     {
-        auto & result = getNodePrivate().getLastChildInLabel(label, cp);
-        Observer::observerInEffect().getLastChildInLabel(result, getNodePrivate(), label);
+        auto & result = nodePrivate().lastChildInLabel(label, cp);
+        Observer::current().lastChildInLabel(result, nodePrivate(), label);
         return Node<Accessor const>(result, context());
     }
 
-    Node<Accessor> getLastChildInLabel (
+    Node<Accessor> lastChildInLabel (
         Label const & label,
         codeplace const & cp
     ) {
-        NodePrivate & result = getNodePrivate().getLastChildInLabel(label, cp);
-        Observer::observerInEffect().getLastChildInLabel(result, getNodePrivate(), label);
+        NodePrivate & result = nodePrivate().lastChildInLabel(label, cp);
+        Observer::current().lastChildInLabel(result, nodePrivate(), label);
         return Node<Accessor>(result, context());
     }
 
-    auto maybeGetLastChildInLabel (Label const & label) const
+    auto maybeLastChildInLabel (Label const & label) const
         -> optional<Node<Accessor const>>
     {
         if (not hasLabel(label))
             return nullopt;
-        return getLastChildInLabel(label, HERE);
+        return lastChildInLabel(label, HERE);
     }
 
-    auto maybeGetLastChildInLabel (Label const & label)
+    auto maybeLastChildInLabel (Label const & label)
         -> optional<Node<Accessor>>
     {
         if (not hasLabel(label))
             return nullopt;
-        return getLastChildInLabel(label, HERE);
+        return lastChildInLabel(label, HERE);
     }
 
     template <class T>
-    Node<T const> getLastChildInLabel (
+    Node<T const> lastChildInLabel (
         Label const & label,
         codeplace const & cp
     ) const
     {
-        return Node<T>::checked(getLastChildInLabel(label, cp));
+        return Node<T>::checked(lastChildInLabel(label, cp));
     }
 
     template <class T>
-    Node<T> getLastChildInLabel (
+    Node<T> lastChildInLabel (
         Label const & label,
         codeplace const & cp
     ) {
-        return Node<T>::checked(getLastChildInLabel(label, cp));
+        return Node<T>::checked(lastChildInLabel(label, cp));
     }
 
     template <class T>
-    auto maybeGetLastChildInLabel (Label const & label) const
+    auto maybeLastChildInLabel (Label const & label) const
         -> optional<Node<T const>>
     {
-        return Node<T>::checked(maybeGetLastChildInLabel(label));
+        return Node<T>::checked(maybeLastChildInLabel(label));
     }
 
     template <class T>
-    auto maybeGetLastChildInLabel (Label const & label)
+    auto maybeLastChildInLabel (Label const & label)
         -> optional<Node<T>>
     {
-        return Node<T>::checked(maybeGetLastChildInLabel(label));
+        return Node<T>::checked(maybeLastChildInLabel(label));
     }
 
 
@@ -650,62 +660,62 @@ public:
     ///
 
     bool hasNextSiblingInLabel () const {
-        bool result = getNodePrivate().hasNextSiblingInLabel();
-        Observer::observerInEffect().hasNextSiblingInLabel(result, getNodePrivate());
+        bool result = nodePrivate().hasNextSiblingInLabel();
+        Observer::current().hasNextSiblingInLabel(result, nodePrivate());
         return result;
     }
 
-    Node<Accessor const> getNextSiblingInLabel (codeplace const & cp) const {
-        NodePrivate const & result = getNodePrivate().getNextSiblingInLabel(cp);
-        Observer::observerInEffect().getNextSiblingInLabel(result, getNodePrivate());
+    Node<Accessor const> nextSiblingInLabel (codeplace const & cp) const {
+        NodePrivate const & result = nodePrivate().nextSiblingInLabel(cp);
+        Observer::current().nextSiblingInLabel(result, nodePrivate());
         return Node<Accessor const>(result, context());
     }
 
-    Node<Accessor> getNextSiblingInLabel (codeplace const & cp) {
-        NodePrivate & result = getNodePrivate().getNextSiblingInLabel(cp);
-        Observer::observerInEffect().getNextSiblingInLabel(result, getNodePrivate());
+    Node<Accessor> nextSiblingInLabel (codeplace const & cp) {
+        NodePrivate & result = nodePrivate().nextSiblingInLabel(cp);
+        Observer::current().nextSiblingInLabel(result, nodePrivate());
         return Node<Accessor>(result, context());
     }
 
-    optional<Node<Accessor const>> maybeGetNextSiblingInLabel () const {
+    optional<Node<Accessor const>> maybeNextSiblingInLabel () const {
         if (not hasNextSiblingInLabel())
             return nullopt;
-        return getNextSiblingInLabel(HERE);
+        return nextSiblingInLabel(HERE);
     }
 
-    optional<Node<Accessor>> maybeGetNextSiblingInLabel () {
+    optional<Node<Accessor>> maybeNextSiblingInLabel () {
         if (not hasNextSiblingInLabel())
             return nullopt;
-        return getNextSiblingInLabel(HERE);
+        return nextSiblingInLabel(HERE);
     }
 
 
     template <class T>
-    Node<T const> getNextSiblingInLabel (codeplace const & cp) const {
-        auto result = Node<T>::checked(getNextSiblingInLabel(cp));
+    Node<T const> nextSiblingInLabel (codeplace const & cp) const {
+        auto result = Node<T>::checked(nextSiblingInLabel(cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
 
     template <class T>
-    Node<T> getNextSiblingInLabel (codeplace const & cp) {
-        auto result = Node<T>::checked(getNextSiblingInLabel(cp));
+    Node<T> nextSiblingInLabel (codeplace const & cp) {
+        auto result = Node<T>::checked(nextSiblingInLabel(cp));
         hopefully(result != nullopt, cp);
         return *result;
     }
 
     template <class T>
-    auto maybeGetNextSiblingInLabel () const
+    auto maybeNextSiblingInLabel () const
         -> optional<Node<T const>>
     {
-        return Node<T>::checked(maybeGetNextSiblingInLabel());
+        return Node<T>::checked(maybeNextSiblingInLabel());
     }
 
     template <class T>
-    auto maybeGetNextSiblingInLabel ()
+    auto maybeNextSiblingInLabel ()
         -> optional<Node<T>>
     {
-        return Node<T>::checked(maybeGetNextSiblingInLabel());
+        return Node<T>::checked(maybeNextSiblingInLabel());
     }
 
 
@@ -714,62 +724,63 @@ public:
     ///
 
     bool hasPreviousSiblingInLabel () const {
-        bool result = getNodePrivate().hasPreviousSiblingInLabel();
-        Observer::observerInEffect().hasPreviousSiblingInLabel(result, getNodePrivate());
+        bool result = nodePrivate().hasPreviousSiblingInLabel();
+        Observer::current().hasPreviousSiblingInLabel(result, nodePrivate());
         return result;
     }
 
-    auto getPreviousSiblingInLabel (codeplace const & cp) const
+    auto previousSiblingInLabel (codeplace const & cp) const
         -> Node<Accessor const>
     {
-        auto & result = getNodePrivate().getPreviousSiblingInLabel(cp);
-        Observer::observerInEffect().getPreviousSiblingInLabel(result, getNodePrivate());
+        auto & result = nodePrivate().previousSiblingInLabel(cp);
+        Observer::current().previousSiblingInLabel(result, nodePrivate());
         return Node<Accessor const>(result, context());
     }
 
-    Node<Accessor> getPreviousSiblingInLabel (codeplace const & cp) {
-        NodePrivate & result = getNodePrivate().getPreviousSiblingInLabel(cp);
-        Observer::observerInEffect().getPreviousSiblingInLabel(result, getNodePrivate());
+    Node<Accessor> previousSiblingInLabel (codeplace const & cp) {
+        NodePrivate & result = nodePrivate().previousSiblingInLabel(cp);
+        Observer::current().previousSiblingInLabel(result, nodePrivate());
         return Node<Accessor>(result, context());
     }
 
-    optional<Node<Accessor const>> maybeGetPreviousSiblingInLabel () const {
+    optional<Node<Accessor const>> maybePreviousSiblingInLabel () const {
         if (not hasPreviousSiblingInLabel())
             return nullopt;
-        return getPreviousSiblingInLabel(HERE);
+        return previousSiblingInLabel(HERE);
     }
-    optional<Node<Accessor>> maybeGetPreviousSiblingInLabel () {
+
+    optional<Node<Accessor>> maybePreviousSiblingInLabel () {
         if (not hasPreviousSiblingInLabel())
             return nullopt;
-        return getPreviousSiblingInLabel(HERE);
+        return previousSiblingInLabel(HERE);
     }
 
     template <class T>
-    Node<T const> getPreviousSiblingInLabel (codeplace const & cp) const {
-        auto result = Node<T>::checked(maybeGetPreviousSiblingInLabel());
+    Node<T const> previousSiblingInLabel (codeplace const & cp) const {
+        auto result = Node<T>::checked(maybePreviousSiblingInLabel());
         hopefully(result != nullopt, cp);
         return *result;
     }
 
     template <class T>
-    Node<T> getPreviousSiblingInLabel (codeplace const & cp) {
-        auto result = Node<T>::checked(maybeGetPreviousSiblingInLabel());
+    Node<T> previousSiblingInLabel (codeplace const & cp) {
+        auto result = Node<T>::checked(maybePreviousSiblingInLabel());
         hopefully(result != nullopt, cp);
         return *result;
     }
 
     template <class T>
-    auto maybeGetPreviousSiblingInLabel () const
+    auto maybePreviousSiblingInLabel () const
         -> optional<Node<T const>>
     {
-        return Node<T>::checked(maybeGetPreviousSiblingInLabel());
+        return Node<T>::checked(maybePreviousSiblingInLabel());
     }
 
     template <class T>
-    auto maybeGetPreviousSiblingInLabel ()
+    auto maybePreviousSiblingInLabel ()
         -> optional<Node<T>>
     {
-        return Node<T>::checked(maybeGetPreviousSiblingInLabel());
+        return Node<T>::checked(maybePreviousSiblingInLabel());
     }
 
 
@@ -782,12 +793,12 @@ public:
     // children, obviously).  Implementation lost in a refactoring, add with
     // other missing micro-observations
 
-    std::unordered_set<Node<Accessor const>> getChildSetForLabel () const {
+    std::unordered_set<Node<Accessor const>> childSetForLabel () const {
         hopefullyNotReached("Not implemented yet", HERE);
         return std::unordered_set<Node<Accessor const>>();
     }
 
-    std::unordered_set<Node<Accessor>> getChildSetForLabel () {
+    std::unordered_set<Node<Accessor>> childSetForLabel () {
         hopefullyNotReached("Not implemented yet", HERE);
         return std::unordered_set<Node<Accessor>>();
     }
@@ -795,8 +806,8 @@ public:
     // structural modifications
 public:
     void setTag (Tag const & tag) {
-        getNodePrivate().setTag(tag);
-        Observer::observerInEffect().setTag(getNodePrivate(), tag);
+        nodePrivate().setTag(tag);
+        Observer::current().setTag(nodePrivate(), tag);
         return;
     }
 
@@ -807,7 +818,7 @@ public:
         Label const & label
     ) {
         tuple<NodePrivate &, NodePrivate::insert_info> result
-            = getNodePrivate().insertChildAsFirstInLabel(
+            = nodePrivate().insertChildAsFirstInLabel(
                 std::move(newChild.extractNodePrivate()), label
             );
 
@@ -816,8 +827,8 @@ public:
         NodePrivate::insert_info & info = std::get<1>(result);
         hopefully(info._previousChild == nullptr, HERE);
 
-        Observer::observerInEffect().insertChildAsFirstInLabel(
-            getNodePrivate(),
+        Observer::current().insertChildAsFirstInLabel(
+            nodePrivate(),
             nodeRef,
             info._labelInParent,
             info._nextChild
@@ -832,7 +843,7 @@ public:
     ) {
         NodePrivate const * previousChildInLabel;
         tuple<NodePrivate &, NodePrivate::insert_info> result
-            = getNodePrivate().insertChildAsLastInLabel(
+            = nodePrivate().insertChildAsLastInLabel(
                 std::move(newChild.extractNodePrivate()), label
             );
 
@@ -841,8 +852,8 @@ public:
         NodePrivate::insert_info & info = std::get<1>(result);
         hopefully(info._nextChild == nullptr, HERE);
 
-        Observer::observerInEffect().insertChildAsLastInLabel(
-            getNodePrivate(),
+        Observer::current().insertChildAsLastInLabel(
+            nodePrivate(),
             nodeRef,
             info._labelInParent,
             info._previousChild
@@ -855,7 +866,7 @@ public:
         Tree<T> && newSibling
     ) {
         tuple<NodePrivate &, NodePrivate::insert_info> result =
-            getNodePrivate().insertSiblingAfter(
+            nodePrivate().insertSiblingAfter(
                 std::move(newSibling.extractNodePrivate())
             );
 
@@ -864,17 +875,17 @@ public:
         NodePrivate::insert_info & info = std::get<1>(result);
 
         if (not info._nextChild) {
-            Observer::observerInEffect().insertChildAsLastInLabel(
+            Observer::current().insertChildAsLastInLabel(
                 *info._nodeParent,
                 nodeRef,
                 info._labelInParent,
-                &getNodePrivate()
+                &nodePrivate()
             );
         } else {
-            Observer::observerInEffect().insertChildBetween(
+            Observer::current().insertChildBetween(
                 *info._nodeParent,
                 nodeRef,
-                getNodePrivate(),
+                nodePrivate(),
                 *info._nextChild
             );
         }
@@ -887,7 +898,7 @@ public:
         Tree<T> && newSibling
     ) {
         tuple<NodePrivate &, NodePrivate::insert_info> result =
-            getNodePrivate().insertSiblingBefore(
+            nodePrivate().insertSiblingBefore(
                 std::move(newSibling.extractNodePrivate())
             );
 
@@ -896,18 +907,18 @@ public:
         NodePrivate::insert_info & info = std::get<1>(result);
 
         if (not info._previousChild) {
-            Observer::observerInEffect().insertChildAsLastInLabel(
+            Observer::current().insertChildAsLastInLabel(
                 *info._nodeParent,
                 nodeRef,
                 info._labelInParent,
-                &getNodePrivate()
+                &nodePrivate()
             );
         } else {
-            Observer::observerInEffect().insertChildBetween(
+            Observer::current().insertChildBetween(
                 *info._nodeParent,
                 nodeRef,
                 *info._previousChild,
-                getNodePrivate()
+                nodePrivate()
             );
         }
 
@@ -919,7 +930,7 @@ public:
     {
         std::vector<Tree<Accessor>> children;
         while (hasLabel(label)) {
-            children.push_back(getFirstChildInLabel(label, HERE).detach());
+            children.push_back(firstChildInLabel(label, HERE).detach());
         }
         return children;
     }
@@ -934,8 +945,8 @@ public:
     // interesting cases show up.  We don't want to introduce data blobs
 public:
     void setText (QString const & str) {
-        getNodePrivate().setText(str);
-        Observer::observerInEffect().setText(getNodePrivate(), str);
+        nodePrivate().setText(str);
+        Observer::current().setText(nodePrivate(), str);
     }
 
     void insertCharBeforeIndex (
@@ -943,10 +954,10 @@ public:
         QChar const & ch,
         codeplace const & cp
     ) {
-        QString str = getNodePrivate().getText(cp);
+        QString str = nodePrivate().text(cp);
         str.insert(index, ch);
-        getNodePrivate().setText(str);
-        Observer::observerInEffect().setText(getNodePrivate(), str);
+        nodePrivate().setText(str);
+        Observer::current().setText(nodePrivate(), str);
     }
 
     void insertCharAfterIndex (
@@ -954,24 +965,24 @@ public:
         QChar const & ch,
         codeplace const & cp
     ) {
-        QString str = getNodePrivate().getText(cp);
+        QString str = nodePrivate().text(cp);
         str.insert(index + 1, ch);
-        getNodePrivate().setText(str);
-        Observer::observerInEffect().setText(getNodePrivate(), str);
+        nodePrivate().setText(str);
+        Observer::current().setText(nodePrivate(), str);
     }
 
     void deleteCharAtIndex (int index, codeplace const & cp) {
-        QString str = getNodePrivate().getText(cp);
+        QString str = nodePrivate().text(cp);
         str.remove(index, 1);
-        getNodePrivate().setText(str);
-        Observer::observerInEffect().setText(getNodePrivate(), str);
+        nodePrivate().setText(str);
+        Observer::current().setText(nodePrivate(), str);
     }
 
 public:
     bool isSubtreeCongruentTo (Node<Accessor const> const & other) const
     {
-        return 0 == getNodePrivate().compare(
-            other.accessor().getNodePrivate()
+        return 0 == nodePrivate().compare(
+            other.accessor().nodePrivate()
         );
     }
 
@@ -982,8 +993,8 @@ public:
     template <class OtherT>
     bool lowerStructureRankThan (Node<OtherT const> const & other) const
     {
-        return -1 == getNodePrivate().compare(
-            other.accessor().getNodePrivate()
+        return -1 == nodePrivate().compare(
+            other.accessor().nodePrivate()
         );
     }
 
