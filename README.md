@@ -1,3 +1,5 @@
+![Methyl logo](https://raw.github.com/hostilefork/methyl/master/methyl-logo.png)
+
 # Methyl Permissions-Based Tree/Graph Library
 
 (a.k.a. "The DOM for Brian's Pathological Application Framework (a.k.a. Benzene)")
@@ -6,7 +8,7 @@
 
 This is not the "actual" Methyl implementation.  It's a stub that was invented when the methodology being used for object-relational management in a memory-mapped file was shown to exhibit undefined behavior.  Also, it is an attempt to reinvent the system based on a new [Proxy pattern design](http://codereview.stackexchange.com/questions/33713/proxy-facade-implementation-concept-in-c11-impedance-matching-db-with-classes).
 
-As such, it's a bit of a mess; grafted from various pieces.  Although seemingly the foundations are about as good as such a concept can get; buggy and sketchy as it is.  It's actually stubbed out using a tree structure based on Qt's QDomAccessorwith no persistence.  It's good enough for testing (and persisting with serialization)...but the goal is to bring it back to being based on a transaction-logged memory-mapped file implementation.
+As such, it's a bit of a mess; grafted from various pieces.  The interface is probably about as good as such a concept can get; but no one has come with the coup-de-grace to say it **won't** work.  For a while it was stubbed out using a tree structure based on Qt's XML QDomElement, until performance problems made me go ahead and do a quick rewrite as a standard library based data structure.  It's good enough for testing (and persisting with serialization)...but the goal is to bring it back to being based on a transaction-logged memory-mapped file implementation.
 
 Whether it has a future or not is uncertain.  I'm just stuffing it on GitHub to make it easier to backup and clone from "The Cloud" as I patch other parts back into it, and get some issue tracking.  The main goal is to get it to the point of being able to resurrect demos such that others could reasonably build/test them.  But for now, don't bother trying to read or run it, unless you are me!  It's *incomplete*, *not properly commented*, and *lacks test suites*!
 
