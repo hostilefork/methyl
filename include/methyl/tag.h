@@ -68,7 +68,7 @@ private:
 public:
     explicit Tag (
         QString const & urlString,
-        QUrl::ParsingMode mode /* = QUrl::StrictMode */
+        QUrl::ParsingMode /* mode = QUrl::StrictMode */
     ) :
         _urlString (urlString),
         _uuid ()

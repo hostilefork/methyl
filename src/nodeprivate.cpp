@@ -32,15 +32,13 @@ tracked<bool> globalDebugNodeLabeling (false, HERE);
 // STATIC METHODS
 //
 
-optional<NodePrivate const &> NodePrivate::maybeGetFromId (
-    methyl::Identity const & id
-) {
+NodePrivate const * NodePrivate::maybeGetFromId (methyl::Identity const & id) {
     QReadLocker lock (&globalEngine->_mapLock);
 
     auto iter = globalEngine->_mapIdToNode.find(id);
     if (iter == end(globalEngine->_mapIdToNode))
-        return nullopt;
-    return *iter->second;
+        return nullptr;
+    return iter->second;
 }
 
 
@@ -356,7 +354,7 @@ bool NodePrivate::hasLabelBefore (
     codeplace const & cp
 ) const {
     auto iter = _labelToChildren.find(label);
-    hopefully(iter != end(_labelToChildren), HERE);
+    hopefully(iter != end(_labelToChildren), cp);
     return iter != begin(_labelToChildren);
 }
 
@@ -429,7 +427,7 @@ NodePrivate const & NodePrivate::nextSiblingInLabel (
     codeplace const & cp
 ) const
 {
-    relationship_info info = relationshipToParent(HERE);
+    relationship_info info = relationshipToParent(cp);
 
     return *(*++info._iter);
 }
@@ -453,7 +451,7 @@ bool NodePrivate::hasPreviousSiblingInLabel () const {
 NodePrivate const & NodePrivate::previousSiblingInLabel (
     codeplace const & cp
 ) const {
-    relationship_info info = relationshipToParent(HERE);
+    relationship_info info = relationshipToParent(cp);
 
     return *(*--info._iter);
 }

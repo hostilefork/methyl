@@ -105,17 +105,7 @@ optional<T> maybeIfNotValue(T const & value, T result) {
 using std::unique_ptr;
 using std::shared_ptr;
 using std::make_shared;
-
-// make_unique is in C++14, which I'm not using yet.  Accidentally left out of
-// C++11 somehow.  (?)
-//
-//     http://stackoverflow.com/questions/7038357/
-//
-template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args)
-{
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
+using std::make_unique;
 
 // Should probably be in hoist.  I don't know why it isn't.  Review.
 inline void notImplemented(QString const & routine, codeplace const & cp) {

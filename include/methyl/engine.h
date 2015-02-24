@@ -161,10 +161,6 @@ public:
 
 extern Engine* globalEngine;
 
-// we moc this file, though whether there are any QObjects or not may vary
-// this dummy object suppresses the warning "No relevant classes found" w/moc
-class ENGINE_no_moc_warning : public QObject { Q_OBJECT };
-
 } // end namespace methyl
 
 #endif

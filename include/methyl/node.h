@@ -145,7 +145,7 @@ public:
             std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
-    ) :
+    ) noexcept :
         Node<T const> (
             other->nodePrivate(),
             std::move(other.accessor().context())
@@ -178,7 +178,7 @@ public:
             not std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
-    ) :
+    ) noexcept :
         Node<T const> (
             other->nodePrivate(),
             std::move(other.accessor().context())
@@ -344,7 +344,7 @@ public:
             std::is_base_of<T, U>::value and not std::is_const<U>::value,
             void *
         >::type = nullptr
-    ) :
+    ) noexcept :
         Node<T const> (
             other->nodePrivate(),
             std::move(other->context())
@@ -378,7 +378,7 @@ public:
             std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
-    ) :
+    ) noexcept :
         Node<T const> (
             other.accessor().nodePrivate(),
             std::move(other.accessor().context())
@@ -412,7 +412,7 @@ public:
             not std::is_base_of<T, U>::value and not std::is_const<U>::value,
             void *
         >::type = nullptr
-    ) :
+    ) noexcept :
         Node<T const> (
             other->nodePrivate(),
             std::move(other.accessor().context())
@@ -446,7 +446,7 @@ public:
             not std::is_base_of<T, U>::value,
             void *
         >::type = nullptr
-    ) :
+    ) noexcept :
         Node<T const> (
             other.getNode().nodePrivate(),
             std::move(other.getNode().context())
@@ -597,10 +597,6 @@ public:
         return test;
     }
 };
-
-// we moc this file, though whether there are any QObjects or not may vary
-// this dummy object suppresses the warning "No relevant classes found" w/moc
-class METHYL_NODE_no_moc_warning : public QObject { Q_OBJECT };
 
 }
 

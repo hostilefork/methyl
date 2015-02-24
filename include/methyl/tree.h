@@ -204,10 +204,12 @@ public:
         );
     }
 
-    void operator= (nullptr_t dummy) {
+    void operator= (std::nullptr_t) {
         unique_ptr<NodePrivate> thisAccessor(extractNodePrivate());
 
-        // REVIEW: Go through and mimic what unique_ptr does
+        // REVIEW: Go through and mimic what unique_ptr does, and if use of
+        // nullptr_t is a good idea (same old concept)
+
         return;
     }
 
@@ -339,11 +341,6 @@ public:
         );
     }
 };
-
-
-// we moc this file, though whether there are any QObjects or not may vary
-// this dummy object suppresses the warning "No relevant classes found" w/moc
-class ROOTNODE_no_moc_warning : public QObject { Q_OBJECT };
 
 }
 

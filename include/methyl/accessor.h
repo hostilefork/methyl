@@ -342,12 +342,10 @@ public:
     template <class T>
     bool hasParentEqualTo (Node<T> possibleParent) const {
         // should be a finer-grained micro-observation than this
-        optional<Node<Accessor>> parent = maybeParent();
-        if (not parent) {
+        auto parent = maybeParent();
+        if (not parent)
             return false;
-        }
         return *parent == possibleParent;
-
     }
 
     bool hasLabelInParentEqualTo (
@@ -394,9 +392,7 @@ public:
         if (not id)
             return nullopt;
 
-        optional<NodePrivate const &> tagNode
-            = NodePrivate::maybeGetFromId(*id);
-
+        auto tagNode = NodePrivate::maybeGetFromId(*id);
         if (not tagNode)
             return nullopt;
 
@@ -1071,11 +1067,6 @@ public:
     bool wasCausedByCancellation () const;
     QString getDescription () const;
 };
-
-
-// we moc this file, though whether there are any QObjects or not may vary
-// this dummy object suppresses the warning "No relevant classes found" w/moc
-class NODE_no_moc_warning : public QObject { Q_OBJECT };
 
 } // end namespace methyl
 
